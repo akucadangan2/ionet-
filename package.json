@@ -1,0 +1,20 @@
+{
+  "name": "rtrwnet-platform",
+  "private": true,
+  "workspaces": [
+    "apps/web",
+    "apps/local-backup-agent"
+  ],
+  "dependencies": {
+    "@supabase/ssr": "^0.12.4",
+    "exceljs": "^4.4.0",
+    "leaflet": "^1.9.4",
+    "net-snmp": "^3.26.3",
+    "node-routeros": "^1.6.8",
+    "react-leaflet": "^5.0.0",
+    "source-map-support": "^0.5.21"
+  },
+  "devDependencies": {
+    "supabase": "^2.111.0"
+  }
+}

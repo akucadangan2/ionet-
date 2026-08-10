@@ -1,0 +1,81 @@
+// app/(dashboard)/jaringan/peta/page.tsx
+"use client";
+
+import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+import { supabase } from "@/lib/supabase/client";
+
+const NetworkMap = dynamic(() => import("@/components/NetworkMap"), { ssr: false });
+
+export default function PetaPage() {
+  const [routers, setRouters] = useState<any[]>([]);
+  const [pelanggan, setPelanggan] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      const { data: routerData } = await supabase
+        .from("router")
+        .select("id, nama, latitude, longitude, status")
+        .not("latitude", "is", null);
+
+      const { data: pelangganData } = await supabase
+        .from("pelanggan")
+        .select(`
+          id, nama, latitude, longitude, status,
+          log_sinyal_olt(rx_power, tx_power, recorded_at)
+        `)
+        .not("latitude", "is", null)
+        .order("recorded_at", { foreignTable: "log_sinyal_olt", ascending: false })
+        .limit(1, { foreignTable: "log_sinyal_olt" });
+
+      setRouters(routerData ?? []);
+      setPelanggan(
+        (pelangganData ?? []).map((p: any) => ({
+          ...p,
+          rxPower: p.log_sinyal_olt?.[0]?.rx_power,
+          txPower: p.log_sinyal_olt?.[0]?.tx_power,
+        }))
+      );
+      setLoading(false);
+    }
+    loadData();
+  }, []);
+
+  if (loading) return <p style={{ color: "var(--color-ink-muted)" }}>Memuat peta...</p>;
+
+  const center: [number, number] =
+    routers.length > 0 ? [routers[0].latitude, routers[0].longitude] : [-5.45, 105.27];
+
+  const routerOnline = routers.filter((r) => r.status === "online").length;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h1 className="text-2xl font-semibold">Peta Jaringan</h1>
+          <p className="text-sm" style={{ color: "var(--color-ink-muted)" }}>
+            {routerOnline}/{routers.length} router online &middot; {pelanggan.length} titik pelanggan
+          </p>
+        </div>
+        <div className="flex items-center gap-4 text-sm">
+          <span className="flex items-center gap-1.5">
+            <span style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--color-signal-good)", display: "inline-block" }} />
+            Online
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--color-signal-bad)", display: "inline-block" }} />
+            Offline
+          </span>
+        </div>
+      </div>
+
+      <div
+        className="rounded-lg overflow-hidden"
+        style={{ border: "1px solid var(--color-border)" }}
+      >
+        <NetworkMap routers={routers} pelanggan={pelanggan} center={center} />
+      </div>
+    </div>
+  );
+}
