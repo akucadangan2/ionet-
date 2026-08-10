@@ -1,7 +1,6 @@
 // lib/tickets/create-ticket.ts
 import { supabaseAdmin as supabase } from "@/lib/supabase/admin";
 import { sendWhatsApp } from "@/lib/wa-gateway/client";
-import { getActiveContacts } from "../notifications/get-contacts";
 import { getActiveContacts } from "@/lib/notifications/get-contacts";
 
 interface CreateTicketParams {
