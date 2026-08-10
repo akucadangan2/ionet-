@@ -1,11 +1,13 @@
-// app/layout.tsx
+import type { Metadata } from "next";
 import "./globals.css";
 
-export const metadata = {
-  title: "RTRW Net Platform",
+export const metadata: Metadata = {
+  title: "IONET+ Platform",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="id">
       <head>
