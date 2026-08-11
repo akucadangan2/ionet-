@@ -1,8 +1,5 @@
 // lib/mikrotik/client.ts
-// Bukan connect TCP langsung ke Mikrotik (nggak bisa dari Vercel/serverless),
-// tapi manggil HTTP relay yang jalan di PC toko lewat Cloudflare Tunnel
-
-const RELAY_URL = process.env.MIKROTIK_RELAY_URL!; // https://mikrotik.ionet.my.id
+const RELAY_URL = process.env.MIKROTIK_RELAY_URL!;
 const RELAY_TOKEN = process.env.MIKROTIK_RELAY_TOKEN!;
 
 async function relayCall(path: string, method: "GET" | "POST", body?: object) {
@@ -22,50 +19,48 @@ async function relayCall(path: string, method: "GET" | "POST", body?: object) {
   return json;
 }
 
-// Catatan: parameter "config" (host/user/password) sekarang nggak dipakai lagi
-// buat connect langsung - itu udah tersimpan di .env PC toko. Parameter ini
-// dibiarin ada buat kompatibilitas kode lain yang manggil fungsi ini.
-
 export async function addHotspotUser(
-  config: unknown,
+  routerId: string,
   username: string,
   password: string,
   profile: string,
   limitUptime?: string
 ) {
-  await relayCall("/mikrotik/generate-voucher", "POST", { username, password, profile, limitUptime });
+  await relayCall("/mikrotik/generate-voucher", "POST", { routerId, username, password, profile, limitUptime });
 }
 
-export async function setPPPoEStatus(config: unknown, pppoeUser: string, enabled: boolean) {
-  await relayCall("/mikrotik/ppoe-status", "POST", { pppoeUser, enabled });
+export async function setPPPoEStatus(routerId: string, pppoeUser: string, enabled: boolean) {
+  await relayCall("/mikrotik/ppoe-status", "POST", { routerId, pppoeUser, enabled });
 }
 
 export async function setBandwidthQueue(
-  config: unknown,
+  routerId: string,
   target: string,
   uploadLimit: string,
   downloadLimit: string
 ) {
-  await relayCall("/mikrotik/set-bandwidth", "POST", { target, uploadLimit, downloadLimit });
+  await relayCall("/mikrotik/set-bandwidth", "POST", { routerId, target, uploadLimit, downloadLimit });
 }
 
-export async function getWirelessRegistrationTable(config: unknown) {
-  const result = await relayCall("/mikrotik/wireless-registration", "GET");
+export async function getWirelessRegistrationTable(routerId: string) {
+  const result = await relayCall(`/mikrotik/wireless-registration?routerId=${routerId}`, "GET");
   return result.data;
 }
 
-export async function getActivePPPoEConnections(config: unknown) {
-  const result = await relayCall("/mikrotik/ppp-active", "GET");
+export async function getActivePPPoEConnections(routerId: string) {
+  const result = await relayCall(`/mikrotik/ppp-active?routerId=${routerId}`, "GET");
   return result.data;
 }
 
-export async function getQueueStats(config: unknown, target: string) {
-  const result = await relayCall(`/mikrotik/queue-stats?target=${encodeURIComponent(target)}`, "GET");
+export async function getQueueStats(routerId: string, target: string) {
+  const result = await relayCall(
+    `/mikrotik/queue-stats?routerId=${routerId}&target=${encodeURIComponent(target)}`,
+    "GET"
+  );
   return result.data;
 }
 
-export async function pingGatewayViaInterface(config: unknown, interfaceName: string, gatewayIp: string) {
-  // TODO: belum ada endpoint relay buat ini - dipakai buat monitoring uplink,
-  // sementara return reachable:true biar nggak bikin fitur lain error dulu
+export async function pingGatewayViaInterface(routerId: string, interfaceName: string, gatewayIp: string) {
+  // TODO: belum ada endpoint relay buat ini - sementara return reachable:true
   return { reachable: true, packetsReceived: 3 };
 }

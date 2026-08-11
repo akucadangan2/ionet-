@@ -25,6 +25,9 @@ const { initDb, getDb } = require("./db");
 const { syncToCentral, startAutoSync, isCentralReachable } = require("./sync");
 const mikrotik = require("./mikrotik-client");
 
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
 const app = express();
 app.use(express.json());
 
@@ -32,13 +35,23 @@ initDb();
 startAutoSync();
 
 const LOCAL_AGENT_TOKEN = process.env.LOCAL_AGENT_TOKEN;
-const MIKROTIK_HOST = process.env.MIKROTIK_HOST;
-const MIKROTIK_USER = process.env.MIKROTIK_USER;
-const MIKROTIK_PASSWORD = process.env.MIKROTIK_PASSWORD;
-const MIKROTIK_PORT = process.env.MIKROTIK_PORT || 8728;
 
-function mikrotikConfig() {
-  return { host: MIKROTIK_HOST, user: MIKROTIK_USER, password: MIKROTIK_PASSWORD, port: Number(MIKROTIK_PORT) };
+async function getRouterConfig(routerId) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/router?id=eq.${routerId}&select=ip_address,api_username,api_password`, {
+    headers: {
+      apikey: SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+    },
+  });
+  const data = await res.json();
+  if (!data || !data.length) throw new Error(`Router ${routerId} tidak ditemukan`);
+
+  return {
+    host: data[0].ip_address,
+    user: data[0].api_username,
+    password: data[0].api_password,
+    port: 8728,
+  };
 }
 
 // Proteksi: semua endpoint /mikrotik/* wajib pakai token yang sama kayak LOCAL_AGENT_TOKEN
@@ -78,8 +91,10 @@ app.post("/transaksi-voucher", (req, res) => {
 
 app.post("/mikrotik/generate-voucher", checkAuth, async (req, res) => {
   try {
-    const { username, password, profile, limitUptime } = req.body;
-    await mikrotik.addHotspotUser(mikrotikConfig(), username, password, profile, limitUptime);
+    const { routerId, username, password, profile, limitUptime } = req.body;
+    if (!routerId) throw new Error("routerId diperlukan");
+    const config = await getRouterConfig(routerId);
+    await mikrotik.addHotspotUser(config, username, password, profile, limitUptime);
     res.json({ message: "voucher berhasil dibuat" });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -88,8 +103,10 @@ app.post("/mikrotik/generate-voucher", checkAuth, async (req, res) => {
 
 app.post("/mikrotik/ppoe-status", checkAuth, async (req, res) => {
   try {
-    const { pppoeUser, enabled } = req.body;
-    await mikrotik.setPPPoEStatus(mikrotikConfig(), pppoeUser, enabled);
+    const { routerId, pppoeUser, enabled } = req.body;
+    if (!routerId) throw new Error("routerId diperlukan");
+    const config = await getRouterConfig(routerId);
+    await mikrotik.setPPPoEStatus(config, pppoeUser, enabled);
     res.json({ message: "status PPPoE berhasil diubah" });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -98,8 +115,10 @@ app.post("/mikrotik/ppoe-status", checkAuth, async (req, res) => {
 
 app.post("/mikrotik/set-bandwidth", checkAuth, async (req, res) => {
   try {
-    const { target, uploadLimit, downloadLimit } = req.body;
-    await mikrotik.setBandwidthQueue(mikrotikConfig(), target, uploadLimit, downloadLimit);
+    const { routerId, target, uploadLimit, downloadLimit } = req.body;
+    if (!routerId) throw new Error("routerId diperlukan");
+    const config = await getRouterConfig(routerId);
+    await mikrotik.setBandwidthQueue(config, target, uploadLimit, downloadLimit);
     res.json({ message: "bandwidth berhasil diupdate" });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -108,7 +127,10 @@ app.post("/mikrotik/set-bandwidth", checkAuth, async (req, res) => {
 
 app.get("/mikrotik/wireless-registration", checkAuth, async (req, res) => {
   try {
-    const data = await mikrotik.getWirelessRegistrationTable(mikrotikConfig());
+    const { routerId } = req.query;
+    if (!routerId) throw new Error("routerId diperlukan");
+    const config = await getRouterConfig(routerId);
+    const data = await mikrotik.getWirelessRegistrationTable(config);
     res.json({ data });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -117,7 +139,10 @@ app.get("/mikrotik/wireless-registration", checkAuth, async (req, res) => {
 
 app.get("/mikrotik/ppp-active", checkAuth, async (req, res) => {
   try {
-    const data = await mikrotik.getActivePPPoEConnections(mikrotikConfig());
+    const { routerId } = req.query;
+    if (!routerId) throw new Error("routerId diperlukan");
+    const config = await getRouterConfig(routerId);
+    const data = await mikrotik.getActivePPPoEConnections(config);
     res.json({ data });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -126,8 +151,10 @@ app.get("/mikrotik/ppp-active", checkAuth, async (req, res) => {
 
 app.get("/mikrotik/queue-stats", checkAuth, async (req, res) => {
   try {
-    const { target } = req.query;
-    const data = await mikrotik.getQueueStats(mikrotikConfig(), target);
+    const { routerId, target } = req.query;
+    if (!routerId) throw new Error("routerId diperlukan");
+    const config = await getRouterConfig(routerId);
+    const data = await mikrotik.getQueueStats(config, target);
     res.json({ data });
   } catch (err) {
     res.status(500).json({ message: err.message });
