@@ -13,6 +13,7 @@
     "exceljs": "^4.4.0",
     "leaflet": "^1.9.4",
     "net-snmp": "^3.11.2",
+    "lucide-react": "^0.400.0",
     "next": "^15.5.22",
     "node-routeros": "^1.6.9",
     "react": "^19.0.0",
