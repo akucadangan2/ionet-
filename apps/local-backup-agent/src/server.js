@@ -174,15 +174,36 @@ app.get("/mikrotik/queue-stats", checkAuth, async (req, res) => {
   }
 });
 
-app.get("/snmp/walk", checkAuth, async (req, res) => {
+app.get("/snmp/olt-signal", checkAuth, async (req, res) => {
   try {
-    const { host, community, oid } = req.query;
-    const result = await snmpWalk(
-      host || "192.168.44.102",
-      community || "public",
-      oid || "1.3.6.1.2.1.1" // OID standar "system" - buat tes awal doang
-    );
-    res.json(result);
+    const { host, community } = req.query;
+    const targetHost = host || "192.168.44.102";
+    const targetCommunity = community || "public";
+
+    const [names, powers] = await Promise.all([
+      snmpWalk(targetHost, targetCommunity, "1.3.6.1.4.1.50224.3.12.2.1.2"),
+      snmpWalk(targetHost, targetCommunity, "1.3.6.1.4.1.50224.3.12.3.1.4"),
+    ]);
+
+    const nameMap = {};
+    names.results.forEach((r) => {
+      const index = r.oid.split(".").pop();
+      nameMap[index] = r.value.replace(/\0/g, "").trim();
+    });
+
+    const signals = powers.results
+      .filter((r) => r.oid.endsWith(".0.0"))
+      .map((r) => {
+        const parts = r.oid.split(".");
+        const index = parts[parts.length - 3];
+        return {
+          onuIndex: index,
+          name: nameMap[index] || "unknown",
+          rxPowerDbm: Number(r.value) / 10,
+        };
+      });
+
+    res.json({ signals });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
