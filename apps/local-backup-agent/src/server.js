@@ -198,10 +198,14 @@ app.get("/snmp/olt-signal", checkAuth, async (req, res) => {
         const index = parts[parts.length - 3];
         return {
           onuIndex: index,
-          name: nameMap[index] || "unknown",
-          rxPowerDbm: Number(r.value) / 10,
+          name: nameMap[index] || null,
+          rxPowerDbm: Number(r.value) / 100,
         };
       });
+
+    // Debug sementara - biar kelihatan kenapa name-matching gagal
+    console.log("Sample nameMap keys:", Object.keys(nameMap).slice(0, 5));
+    console.log("Sample signal index:", signals[0]?.onuIndex);
 
     res.json({ signals });
   } catch (err) {
