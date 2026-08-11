@@ -182,6 +182,7 @@ export async function generateDynamicQris(orderId: string, amount: number): Prom
     partnerReferenceNo: orderId,
     amount: { value: amount.toFixed(2), currency: "IDR" },
     merchantId: DOKU_CLIENT_ID,
+    terminalId: "A01",
   };
   const bodyStr = JSON.stringify(body);
 
