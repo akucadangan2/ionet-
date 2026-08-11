@@ -56,6 +56,8 @@ export default function PelangganPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [search, setSearch] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [routerList, setRouterList] = useState<{ id: string; nama: string }[]>([]);
 
   const inputStyle = { border: "1px solid #ccc", borderRadius: 4, padding: "6px 12px", width: "100%", boxSizing: "border-box" as const };
 
@@ -78,9 +80,14 @@ export default function PelangganPage() {
       .select("id, nama, harga_per_bulan")
       .order("harga_per_bulan");
 
+    const { data: routerData } = await supabase
+      .from("router")
+      .select("id, nama");
+
     setPelangganList((pelangganData as unknown as Pelanggan[]) ?? []);
     setLokasiList(lokasiData ?? []);
     setPaketList(paketData ?? []);
+    setRouterList(routerData ?? []);
     setLoading(false);
   }, []);
 
@@ -142,6 +149,30 @@ export default function PelangganPage() {
     loadData();
   }
 
+  async function handleImportMikrotik() {
+    if (routerList.length === 0) {
+      alert("Belum ada router terdaftar di sistem");
+      return;
+    }
+
+    const routerId = routerList.length === 1
+      ? routerList[0].id
+      : prompt(`Pilih router (masukkan salah satu ID):\n${routerList.map((r) => `${r.id} - ${r.nama}`).join("\n")}`);
+
+    if (!routerId) return;
+
+    setImporting(true);
+    const res = await fetch("/api/pelanggan/import-mikrotik", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ routerId }),
+    });
+    const json = await res.json();
+    setImporting(false);
+    alert(json.message);
+    loadData();
+  }
+
   const filteredList = pelangganList.filter(
     (p) =>
       p.nama.toLowerCase().includes(search.toLowerCase()) ||
@@ -154,15 +185,23 @@ export default function PelangganPage() {
     <div>
       <h1>Data Pelanggan</h1>
 
-      <div style={{ marginBottom: 10 }}>
+      <div style={{ marginBottom: 10, display: "flex", alignItems: "center" }}>
         <input
           placeholder="Cari nama/no HP..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 4 }}
         />
-        <button onClick={openTambahForm} style={{ marginLeft: 10, padding: "6px 12px" }}>
+        <button onClick={openTambahForm} className="px-4 py-2 rounded-lg text-sm font-medium text-white" style={{ background: "var(--color-accent)", marginLeft: 10 }}>
           + Tambah Pelanggan
+        </button>
+        <button
+          onClick={handleImportMikrotik}
+          disabled={importing}
+          className="px-4 py-2 rounded-lg text-sm font-medium ml-2"
+          style={{ border: "1px solid var(--color-accent)", color: "var(--color-accent)" }}
+        >
+          {importing ? "Mengimpor..." : "Import dari Mikrotik"}
         </button>
       </div>
 
