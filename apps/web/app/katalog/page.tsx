@@ -55,6 +55,8 @@ export default function KatalogPage() {
             jaringan fiber optik, harga terjangkau, dan dukungan teknis yang cepat tanggap.
           </p>
           
+          {/* Tag pembuka <a> yang sebelumnya hilang ditambahkan di sini */}
+          <a
             href="#paket"
             className="stagger-2 inline-block px-8 py-3 rounded-lg text-sm font-medium text-white transition-transform hover:scale-105"
             style={{ background: "var(--color-accent)" }}
@@ -66,7 +68,7 @@ export default function KatalogPage() {
 
       {/* Fitur unggulan */}
       <section style={{ padding: "64px 24px", maxWidth: 1000, margin: "0 auto" }}>
-        <div className="grid grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[
             { icon: Zap, title: "Fiber Optik", desc: "Jaringan fiber optik berkualitas tinggi, minim gangguan cuaca" },
             { icon: ShieldCheck, title: "Stabil 24 Jam", desc: "Monitoring jaringan real-time, respons cepat kalau ada gangguan" },
@@ -105,7 +107,7 @@ export default function KatalogPage() {
               Paket sedang disiapkan, hubungi kami untuk info terbaru
             </p>
           ) : (
-            <div className="grid gap-6" style={{ gridTemplateColumns: `repeat(${Math.min(paketBulanan.length, 4)}, 1fr)` }}>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4" style={{ gridTemplateColumns: `repeat(${Math.min(paketBulanan.length, 4)}, minmax(0, 1fr))` }}>
               {paketBulanan.map((p, i) => (
                 <div
                   key={p.id}
@@ -147,7 +149,7 @@ export default function KatalogPage() {
       <footer style={{ background: "var(--color-sidebar)", padding: "48px 24px", color: "#9CA3AF" }}>
         <div style={{ maxWidth: 800, margin: "0 auto", textAlign: "center" }}>
           <img src="/logo.png" alt="IONET+" style={{ height: 32, margin: "0 auto 20px" }} />
-          <div className="flex items-center justify-center gap-6 mb-4" style={{ fontSize: 14 }}>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 mb-4" style={{ fontSize: 14 }}>
             <span className="flex items-center gap-2">
               <MapPin size={16} /> Tombariri, Minahasa, Sulawesi Utara
             </span>
