@@ -209,7 +209,7 @@ export async function generateDynamicQris(
   const body = {
     partnerReferenceNo: orderId,
     amount: { value: amount.toFixed(2), currency: "IDR" },
-    merchantId: DOKU_CLIENT_ID,
+    merchantId: "ID1026555054018",
     terminalId: "A01",
   };
   const bodyStr = JSON.stringify(body);
