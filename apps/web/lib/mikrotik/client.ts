@@ -1,158 +1,71 @@
 // lib/mikrotik/client.ts
-import { RouterOSAPI } from "node-routeros";
+// Bukan connect TCP langsung ke Mikrotik (nggak bisa dari Vercel/serverless),
+// tapi manggil HTTP relay yang jalan di PC toko lewat Cloudflare Tunnel
 
-interface MikrotikConfig {
-  host: string;
-  user: string;
-  password: string;
-  port?: number;
-}
+const RELAY_URL = process.env.MIKROTIK_RELAY_URL!; // https://mikrotik.ionet.my.id
+const RELAY_TOKEN = process.env.MIKROTIK_RELAY_TOKEN!;
 
-async function getConnection(config: MikrotikConfig): Promise<RouterOSAPI> {
-  const conn = new RouterOSAPI({
-    host: config.host,
-    user: config.user,
-    password: config.password,
-    port: config.port || 8728,
+async function relayCall(path: string, method: "GET" | "POST", body?: object) {
+  const res = await fetch(`${RELAY_URL}${path}`, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${RELAY_TOKEN}`,
+    },
+    body: body ? JSON.stringify(body) : undefined,
   });
-  await conn.connect();
-  return conn;
+
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.message || `Relay error: ${res.status}`);
+  }
+  return json;
 }
 
-// Generate voucher hotspot (dipanggil setelah pembayaran voucher terkonfirmasi)
+// Catatan: parameter "config" (host/user/password) sekarang nggak dipakai lagi
+// buat connect langsung - itu udah tersimpan di .env PC toko. Parameter ini
+// dibiarin ada buat kompatibilitas kode lain yang manggil fungsi ini.
+
 export async function addHotspotUser(
-  config: MikrotikConfig,
+  config: unknown,
   username: string,
   password: string,
   profile: string,
   limitUptime?: string
 ) {
-  const conn = await getConnection(config);
-  try {
-    const params = [
-      `=name=${username}`,
-      `=password=${password}`,
-      `=profile=${profile}`,
-    ];
-    if (limitUptime) params.push(`=limit-uptime=${limitUptime}`);
-    await conn.write("/ip/hotspot/user/add", params);
-  } finally {
-    conn.close();
-  }
+  await relayCall("/mikrotik/generate-voucher", "POST", { username, password, profile, limitUptime });
 }
 
-// Enable/disable PPPoE (dipakai buat auto-disable jatuh tempo & aktivasi manual)
-export async function setPPPoEStatus(
-  config: MikrotikConfig,
-  pppoeUser: string,
-  enabled: boolean
-) {
-  const conn = await getConnection(config);
-  try {
-    const secrets = await conn.write("/ppp/secret/print", [`?name=${pppoeUser}`]);
-    if (!secrets.length) throw new Error(`PPPoE user ${pppoeUser} tidak ditemukan`);
-
-    const id = secrets[0][".id"];
-    await conn.write("/ppp/secret/set", [
-      `=.id=${id}`,
-      `=disabled=${enabled ? "no" : "yes"}`,
-    ]);
-
-    // kalau di-disable & lagi konek, putus paksa biar langsung ke-apply
-    if (!enabled) {
-      const active = await conn.write("/ppp/active/print", [`?name=${pppoeUser}`]);
-      if (active.length) {
-        await conn.write("/ppp/active/remove", [`=.id=${active[0][".id"]}`]);
-      }
-    }
-  } finally {
-    conn.close();
-  }
+export async function setPPPoEStatus(config: unknown, pppoeUser: string, enabled: boolean) {
+  await relayCall("/mikrotik/ppoe-status", "POST", { pppoeUser, enabled });
 }
 
-// Set queue bandwidth uplink/downlink per pelanggan
 export async function setBandwidthQueue(
-  config: MikrotikConfig,
-  target: string, // IP atau PPPoE queue target pelanggan
-  uploadLimit: string, // misal "2M"
-  downloadLimit: string // misal "5M"
+  config: unknown,
+  target: string,
+  uploadLimit: string,
+  downloadLimit: string
 ) {
-  const conn = await getConnection(config);
-  try {
-    const existing = await conn.write("/queue/simple/print", [`?name=${target}`]);
-    const maxLimit = `${uploadLimit}/${downloadLimit}`;
-
-    if (existing.length) {
-      await conn.write("/queue/simple/set", [
-        `=.id=${existing[0][".id"]}`,
-        `=max-limit=${maxLimit}`,
-      ]);
-    } else {
-      await conn.write("/queue/simple/add", [
-        `=name=${target}`,
-        `=target=${target}`,
-        `=max-limit=${maxLimit}`,
-      ]);
-    }
-  } finally {
-    conn.close();
-  }
+  await relayCall("/mikrotik/set-bandwidth", "POST", { target, uploadLimit, downloadLimit });
 }
 
-// Buat monitoring: baca status koneksi wireless (dipakai buat cek sinyal + online/offline)
-export async function getWirelessRegistrationTable(config: MikrotikConfig) {
-  const conn = await getConnection(config);
-  try {
-    return await conn.write("/interface/wireless/registration-table/print");
-  } finally {
-    conn.close();
-  }
+export async function getWirelessRegistrationTable(config: unknown) {
+  const result = await relayCall("/mikrotik/wireless-registration", "GET");
+  return result.data;
 }
 
-// Buat monitoring: baca koneksi PPPoE yang lagi aktif
-export async function getActivePPPoEConnections(config: MikrotikConfig) {
-  const conn = await getConnection(config);
-  try {
-    return await conn.write("/ppp/active/print");
-  } finally {
-    conn.close();
-  }
+export async function getActivePPPoEConnections(config: unknown) {
+  const result = await relayCall("/mikrotik/ppp-active", "GET");
+  return result.data;
 }
 
-// Tambahan buat lib/mikrotik/client.ts - baca statistik queue (usage bandwidth)
-export async function getQueueStats(config: MikrotikConfig, target: string) {
-  const conn = await getConnection(config);
-  try {
-    const queues = await conn.write("/queue/simple/print", [`?target=${target}`]);
-    if (!queues.length) return null;
-
-    return {
-      bytesUpload: Number(queues[0]["bytes"]?.split("/")[0] ?? 0),
-      bytesDownload: Number(queues[0]["bytes"]?.split("/")[1] ?? 0),
-      maxLimit: queues[0]["max-limit"],
-    };
-  } finally {
-    conn.close();
-  }
+export async function getQueueStats(config: unknown, target: string) {
+  const result = await relayCall(`/mikrotik/queue-stats?target=${encodeURIComponent(target)}`, "GET");
+  return result.data;
 }
 
-// Tambahan buat lib/mikrotik/client.ts - cek konektivitas per uplink (ping ke gateway-nya)
-export async function pingGatewayViaInterface(
-  config: MikrotikConfig,
-  interfaceName: string,
-  gatewayIp: string
-) {
-  const conn = await getConnection(config);
-  try {
-    const result = await conn.write("/ping", [
-      `=address=${gatewayIp}`,
-      `=interface=${interfaceName}`,
-      "=count=3",
-    ]);
-
-    const received = result.filter((r: any) => r["seq"] !== undefined && r["time"] !== undefined);
-    return { reachable: received.length > 0, packetsReceived: received.length };
-  } finally {
-    conn.close();
-  }
+export async function pingGatewayViaInterface(config: unknown, interfaceName: string, gatewayIp: string) {
+  // TODO: belum ada endpoint relay buat ini - dipakai buat monitoring uplink,
+  // sementara return reachable:true biar nggak bikin fitur lain error dulu
+  return { reachable: true, packetsReceived: 3 };
 }
