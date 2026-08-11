@@ -34,9 +34,8 @@ app.get("/health", (req, res) => res.json({ status: "ok" }));
 
 app.get("/sync-status", async (req, res) => {
   const db = getDb();
-  const pending = db.prepare("SELECT COUNT(*) as count FROM sync_queue WHERE synced = 0").get();
   const reachable = await isCentralReachable();
-  res.json({ centralReachable: reachable, pendingSync: pending.count });
+  res.json({ centralReachable: reachable, pendingSync: db.countPending() });
 });
 
 app.post("/sync-now", async (req, res) => {
@@ -49,17 +48,8 @@ app.post("/transaksi-voucher", (req, res) => {
   const { paketVoucherId, noHpPembeli, nominalDibayar, metode, kodeVoucher } = req.body;
   const id = crypto.randomUUID();
 
-  db.prepare(`
-    INSERT INTO local_transaksi_voucher
-    (id, paket_voucher_id, no_hp_pembeli, nominal_dibayar, metode, kode_voucher)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(id, paketVoucherId, noHpPembeli, nominalDibayar, metode, kodeVoucher);
-
-  db.prepare(`INSERT INTO sync_queue (table_name, record_id, payload) VALUES (?, ?, ?)`).run(
-    "transaksi_voucher",
-    id,
-    JSON.stringify({ id, paketVoucherId, noHpPembeli, nominalDibayar, metode, kodeVoucher })
-  );
+  db.insertTransaksi({ id, paketVoucherId, noHpPembeli, nominalDibayar, metode, kodeVoucher });
+  db.insertSyncQueue("transaksi_voucher", id, { id, paketVoucherId, noHpPembeli, nominalDibayar, metode, kodeVoucher });
 
   res.json({ id, message: "transaksi disimpan lokal, akan disync begitu koneksi normal" });
 });

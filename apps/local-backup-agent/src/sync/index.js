@@ -2,7 +2,7 @@
 const { getDb } = require("../db");
 
 const CENTRAL_SYNC_URL = process.env.CENTRAL_SYNC_URL;
-const LOCAL_AGENT_TOKEN = process.env.LOCAL_AGENT_TOKEN; // shared secret ke central
+const LOCAL_AGENT_TOKEN = process.env.LOCAL_AGENT_TOKEN;
 
 async function isCentralReachable() {
   try {
@@ -23,10 +23,7 @@ async function syncToCentral() {
     return { synced: 0, message: "central tidak reachable, coba lagi nanti" };
   }
 
-  const pending = db
-    .prepare("SELECT * FROM sync_queue WHERE synced = 0 ORDER BY created_at ASC LIMIT 50")
-    .all();
-
+  const pending = db.getPendingSyncItems(50);
   let syncedCount = 0;
   const errors = [];
 
@@ -36,7 +33,7 @@ async function syncToCentral() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${LOCAL_AGENT_TOKEN}`,
+          Authorization: `Bearer ${LOCAL_AGENT_TOKEN}`,
         },
         body: JSON.stringify({
           table: item.table_name,
@@ -47,13 +44,10 @@ async function syncToCentral() {
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      db.prepare("UPDATE sync_queue SET synced = 1 WHERE id = ?").run(item.id);
+      db.markSynced(item.id);
       syncedCount++;
     } catch (err) {
-      db.prepare("UPDATE sync_queue SET last_error = ? WHERE id = ?").run(
-        err.message,
-        item.id
-      );
+      db.markSyncError(item.id, err.message);
       errors.push({ id: item.id, error: err.message });
     }
   }
@@ -61,7 +55,6 @@ async function syncToCentral() {
   return { synced: syncedCount, total: pending.length, errors };
 }
 
-// Dipanggil periodik (misal tiap 1 menit) dari server.js
 function startAutoSync(intervalMs = 60000) {
   setInterval(async () => {
     const result = await syncToCentral();
