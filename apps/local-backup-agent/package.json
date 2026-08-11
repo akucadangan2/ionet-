@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "express": "^4.19.0",
-    "node-routeros": "^1.6.9"
+    "node-routeros": "^1.6.9",
+    "net-snmp": "^3.11.2"
   }
 }

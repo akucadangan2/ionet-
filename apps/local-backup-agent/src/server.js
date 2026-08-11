@@ -24,6 +24,7 @@ const crypto = require("crypto");
 const { initDb, getDb } = require("./db");
 const { syncToCentral, startAutoSync, isCentralReachable } = require("./sync");
 const mikrotik = require("./mikrotik-client");
+const { snmpWalk } = require("./snmp-test");
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -168,6 +169,20 @@ app.get("/mikrotik/queue-stats", checkAuth, async (req, res) => {
     const config = await getRouterConfig(routerId);
     const data = await mikrotik.getQueueStats(config, target);
     res.json({ data });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.get("/snmp/walk", checkAuth, async (req, res) => {
+  try {
+    const { host, community, oid } = req.query;
+    const result = await snmpWalk(
+      host || "192.168.44.102",
+      community || "public",
+      oid || "1.3.6.1.2.1.1" // OID standar "system" - buat tes awal doang
+    );
+    res.json(result);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
