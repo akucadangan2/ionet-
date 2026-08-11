@@ -149,6 +149,18 @@ app.get("/mikrotik/ppp-active", checkAuth, async (req, res) => {
   }
 });
 
+app.get("/mikrotik/ppp-secrets", checkAuth, async (req, res) => {
+  try {
+    const { routerId } = req.query;
+    if (!routerId) throw new Error("routerId diperlukan");
+    const config = await getRouterConfig(routerId);
+    const data = await mikrotik.getAllPPPoESecrets(config);
+    res.json({ data });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 app.get("/mikrotik/queue-stats", checkAuth, async (req, res) => {
   try {
     const { routerId, target } = req.query;

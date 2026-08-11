@@ -92,6 +92,15 @@ async function getQueueStats(config, target) {
   }
 }
 
+async function getAllPPPoESecrets(config) {
+  const conn = await getConnection(config);
+  try {
+    return await conn.write("/ppp/secret/print");
+  } finally {
+    conn.close();
+  }
+}
+
 module.exports = {
   addHotspotUser,
   setPPPoEStatus,
@@ -99,4 +108,5 @@ module.exports = {
   getWirelessRegistrationTable,
   getActivePPPoEConnections,
   getQueueStats,
+  getAllPPPoESecrets,
 };
