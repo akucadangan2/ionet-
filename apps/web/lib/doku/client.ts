@@ -52,10 +52,11 @@ export async function createCheckout(params: CheckoutParams): Promise<CheckoutRe
   const timestamp = new Date().toISOString();
 
   const body = JSON.stringify({
-    order: {
+  order: {
       amount: params.amount,
       invoice_number: params.orderId,
       currency: "IDR",
+      session_id: params.orderId,
       callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/billing/voucher`,
       line_items: [
         { name: params.itemName, price: params.amount, quantity: 1 },
