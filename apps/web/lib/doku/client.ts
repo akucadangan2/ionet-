@@ -52,7 +52,7 @@ export async function createCheckout(params: CheckoutParams): Promise<CheckoutRe
   const timestamp = new Date().toISOString();
 
   const body = JSON.stringify({
-  order: {
+    order: {
       amount: params.amount,
       invoice_number: params.orderId,
       currency: "IDR",
@@ -136,4 +136,79 @@ export async function checkStatus(orderId: string) {
   }
 
   return res.json();
+}
+
+// ===== DOKU Direct API (SNAP) - QRIS Dinamis, kita bangun sendiri tampilannya =====
+const DOKU_PRIVATE_KEY = process.env.DOKU_PRIVATE_KEY!;
+
+function toIsoStringNoMs(date: Date): string {
+  return date.toISOString().split(".")[0] + "Z";
+}
+
+async function getSnapAccessToken(): Promise<string> {
+  const timestamp = toIsoStringNoMs(new Date());
+  const stringToSign = `${DOKU_CLIENT_ID}|${timestamp}`;
+
+  const sign = crypto.createSign("RSA-SHA256");
+  sign.update(stringToSign);
+  sign.end();
+  const signature = sign.sign(DOKU_PRIVATE_KEY, "base64");
+
+  const res = await fetch(`${DOKU_BASE_URL}/authorization/v1/access-token/b2b`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CLIENT-KEY": DOKU_CLIENT_ID,
+      "X-TIMESTAMP": timestamp,
+      "X-SIGNATURE": signature,
+    },
+    body: JSON.stringify({ grantType: "client_credentials" }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Gagal ambil access token DOKU: ${res.status} ${await res.text()}`);
+  }
+
+  const json = await res.json();
+  return json.accessToken;
+}
+
+export async function generateDynamicQris(orderId: string, amount: number): Promise<{ qrString: string; expiredAt: string }> {
+  const accessToken = await getSnapAccessToken();
+  const requestTarget = "/snap-adapter/b2b/v1.0/qr/qr-mpm-generate";
+  const timestamp = toIsoStringNoMs(new Date());
+
+  const body = {
+    partnerReferenceNo: orderId,
+    amount: { value: amount.toFixed(2), currency: "IDR" },
+    merchantId: DOKU_CLIENT_ID,
+  };
+  const bodyStr = JSON.stringify(body);
+
+  const bodyHash = crypto.createHash("sha256").update(bodyStr).digest("hex").toLowerCase();
+  const stringToSign = `POST:${requestTarget}:${accessToken}:${bodyHash}:${timestamp}`;
+  const signature = crypto.createHmac("sha512", DOKU_SECRET_KEY).update(stringToSign).digest("base64");
+
+  const res = await fetch(`${DOKU_BASE_URL}${requestTarget}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${accessToken}`,
+      "X-PARTNER-ID": DOKU_CLIENT_ID,
+      "X-EXTERNAL-ID": orderId,
+      "X-TIMESTAMP": timestamp,
+      "X-SIGNATURE": signature,
+    },
+    body: bodyStr,
+  });
+
+  if (!res.ok) {
+    throw new Error(`Gagal generate QRIS: ${res.status} ${await res.text()}`);
+  }
+
+  const json = await res.json();
+  return {
+    qrString: json.qrContent,
+    expiredAt: json.validityPeriod,
+  };
 }
