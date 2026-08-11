@@ -16,14 +16,20 @@ export default function KatalogPage() {
   const [paketBulanan, setPaketBulanan] = useState<PaketBulanan[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+useEffect(() => {
     async function load() {
-      const { data } = await supabase
-        .from("paket_bulanan")
-        .select("id, nama, kecepatan_mbps, harga_per_bulan")
-        .order("harga_per_bulan");
-      setPaketBulanan(data ?? []);
-      setLoading(false);
+      try {
+        const { data, error } = await supabase
+          .from("paket_bulanan")
+          .select("id, nama, kecepatan_mbps, harga_per_bulan")
+          .order("harga_per_bulan");
+        if (error) console.error("Error ambil paket:", error);
+        setPaketBulanan(data ?? []);
+      } catch (err) {
+        console.error("Exception ambil paket:", err);
+      } finally {
+        setLoading(false);
+      }
     }
     load();
   }, []);
