@@ -145,7 +145,17 @@ function toIsoStringNoMs(date: Date): string {
   return date.toISOString().split(".")[0] + "Z";
 }
 
-async function getSnapAccessToken(): Promise<string> {
+export interface SnapDebugInfo {
+  step: string;
+  requestUrl: string;
+  requestHeaders: Record<string, string>;
+  requestBody: string;
+  responseStatus: number;
+  responseHeaders: Record<string, string>;
+  responseBody: string;
+}
+
+async function getSnapAccessToken(): Promise<{ token: string; debug: SnapDebugInfo }> {
   const timestamp = toIsoStringNoMs(new Date());
   const stringToSign = `${DOKU_CLIENT_ID}|${timestamp}`;
 
@@ -154,27 +164,45 @@ async function getSnapAccessToken(): Promise<string> {
   sign.end();
   const signature = sign.sign(DOKU_PRIVATE_KEY, "base64");
 
-  const res = await fetch(`${DOKU_BASE_URL}/authorization/v1/access-token/b2b`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-CLIENT-KEY": DOKU_CLIENT_ID,
-      "X-TIMESTAMP": timestamp,
-      "X-SIGNATURE": signature,
-    },
-    body: JSON.stringify({ grantType: "client_credentials" }),
-  });
+  const url = `${DOKU_BASE_URL}/authorization/v1/access-token/b2b`;
+  const headers = {
+    "Content-Type": "application/json",
+    "X-CLIENT-KEY": DOKU_CLIENT_ID,
+    "X-TIMESTAMP": timestamp,
+    "X-SIGNATURE": signature,
+  };
+  const bodyStr = JSON.stringify({ grantType: "client_credentials" });
+
+  const res = await fetch(url, { method: "POST", headers, body: bodyStr });
+  const responseText = await res.text();
+
+  const debug: SnapDebugInfo = {
+    step: "1. Get Access Token",
+    requestUrl: url,
+    requestHeaders: { ...headers, "X-SIGNATURE": signature.slice(0, 20) + "...(dipotong)" },
+    requestBody: bodyStr,
+    responseStatus: res.status,
+    responseHeaders: Object.fromEntries(res.headers.entries()),
+    responseBody: responseText,
+  };
 
   if (!res.ok) {
-    throw new Error(`Gagal ambil access token DOKU: ${res.status} ${await res.text()}`);
+    throw { message: "Gagal ambil access token", debug };
   }
 
-  const json = await res.json();
-  return json.accessToken;
+  const json = JSON.parse(responseText);
+  return { token: json.accessToken, debug };
 }
 
-export async function generateDynamicQris(orderId: string, amount: number): Promise<{ qrString: string; expiredAt: string }> {
-  const accessToken = await getSnapAccessToken();
+export async function generateDynamicQris(
+  orderId: string,
+  amount: number
+): Promise<{ qrString: string; expiredAt: string; debugSteps: SnapDebugInfo[] }> {
+  const debugSteps: SnapDebugInfo[] = [];
+
+  const { token: accessToken, debug: tokenDebug } = await getSnapAccessToken();
+  debugSteps.push(tokenDebug);
+
   const requestTarget = "/snap-adapter/b2b/v1.0/qr/qr-mpm-generate";
   const timestamp = toIsoStringNoMs(new Date());
 
@@ -190,26 +218,43 @@ export async function generateDynamicQris(orderId: string, amount: number): Prom
   const stringToSign = `POST:${requestTarget}:${accessToken}:${bodyHash}:${timestamp}`;
   const signature = crypto.createHmac("sha512", DOKU_SECRET_KEY).update(stringToSign).digest("base64");
 
-  const res = await fetch(`${DOKU_BASE_URL}${requestTarget}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${accessToken}`,
-      "X-PARTNER-ID": DOKU_CLIENT_ID,
-      "X-EXTERNAL-ID": orderId,
-      "X-TIMESTAMP": timestamp,
-      "X-SIGNATURE": signature,
+  const url = `${DOKU_BASE_URL}${requestTarget}`;
+  const headers = {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${accessToken}`,
+    "X-PARTNER-ID": DOKU_CLIENT_ID,
+    "X-EXTERNAL-ID": orderId,
+    "X-TIMESTAMP": timestamp,
+    "X-SIGNATURE": signature,
+    "CHANNEL-ID": "95221",
+  };
+
+  const res = await fetch(url, { method: "POST", headers, body: bodyStr });
+  const responseText = await res.text();
+
+  const genDebug: SnapDebugInfo = {
+    step: "2. Generate QRIS",
+    requestUrl: url,
+    requestHeaders: {
+      ...headers,
+      "Authorization": headers.Authorization.slice(0, 30) + "...(dipotong)",
+      "X-SIGNATURE": signature.slice(0, 20) + "...(dipotong)",
     },
-    body: bodyStr,
-  });
+    requestBody: bodyStr,
+    responseStatus: res.status,
+    responseHeaders: Object.fromEntries(res.headers.entries()),
+    responseBody: responseText,
+  };
+  debugSteps.push(genDebug);
 
   if (!res.ok) {
-    throw new Error(`Gagal generate QRIS: ${res.status} ${await res.text()}`);
+    throw { message: "Gagal generate QRIS", debugSteps };
   }
 
-  const json = await res.json();
+  const json = JSON.parse(responseText);
   return {
     qrString: json.qrContent,
     expiredAt: json.validityPeriod,
+    debugSteps,
   };
 }

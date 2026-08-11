@@ -6,9 +6,13 @@ export async function GET() {
     const testOrderId = `TEST-${Date.now()}`;
     const result = await generateDynamicQris(testOrderId, 10000);
     return NextResponse.json({ success: true, result });
-  } catch (err) {
+  } catch (err: any) {
     return NextResponse.json(
-      { success: false, message: (err as Error).message },
+      {
+        success: false,
+        message: err.message || String(err),
+        debugSteps: err.debugSteps || err.debug || null,
+      },
       { status: 500 }
     );
   }
