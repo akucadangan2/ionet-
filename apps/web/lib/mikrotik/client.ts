@@ -61,6 +61,6 @@ export async function getQueueStats(routerId: string, target: string) {
 }
 
 export async function pingGatewayViaInterface(routerId: string, interfaceName: string, gatewayIp: string) {
-  // TODO: belum ada endpoint relay buat ini - sementara return reachable:true
-  return { reachable: true, packetsReceived: 3 };
+  const result = await relayCall("/mikrotik/ping-gateway", "POST", { routerId, interfaceName, gatewayIp });
+  return result;
 }

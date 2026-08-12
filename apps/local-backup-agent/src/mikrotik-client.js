@@ -101,6 +101,28 @@ async function getAllPPPoESecrets(config) {
   }
 }
 
+async function pingGatewayViaInterface(config, interfaceName, gatewayIp) {
+  const conn = await getConnection(config);
+  try {
+    const results = await conn.write("/ping", [
+      "=address=" + gatewayIp,
+      "=interface=" + interfaceName,
+      "=count=3",
+    ]);
+
+    let received = 0;
+    results.forEach(function (r) {
+      if (r.time && !r.timeout) {
+        received = received + 1;
+      }
+    });
+
+    return { reachable: received > 0, packetsReceived: received };
+  } finally {
+    conn.close();
+  }
+}
+
 module.exports = {
   addHotspotUser,
   setPPPoEStatus,
@@ -109,4 +131,5 @@ module.exports = {
   getActivePPPoEConnections,
   getQueueStats,
   getAllPPPoESecrets,
+  pingGatewayViaInterface,
 };
