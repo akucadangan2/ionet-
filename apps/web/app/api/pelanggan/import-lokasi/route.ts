@@ -69,6 +69,26 @@ export async function POST(req: NextRequest) {
       }
 
       if (!bestMatch) {
+        const isHotspotPoint = row.nama.toLowerCase().indexOf("hotspot") !== -1;
+
+        if (isHotspotPoint && body.createMissingHotspot) {
+          const { data: lokasiDefault } = await supabase.from("lokasi").select("id").limit(1).single();
+          const { error: insertError } = await supabase.from("pelanggan").insert({
+            nama: row.nama,
+            tipe_langganan: "hotspot_voucher",
+            lokasi_id: lokasiDefault ? lokasiDefault.id : null,
+            latitude: row.lat,
+            longitude: row.lng,
+            status: "aktif",
+          });
+
+          if (!insertError) {
+            matched++;
+            matchedFuzzy++;
+            continue;
+          }
+        }
+
         unmatched.push(row.nama);
         continue;
       }

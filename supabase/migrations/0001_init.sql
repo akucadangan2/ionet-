@@ -46,6 +46,8 @@ create table pelanggan (
   tipe_langganan text check (tipe_langganan in ('hotspot_voucher', 'pppoe_bulanan')) not null,
   pppoe_username text,       -- kalau tipe pppoe_bulanan
   paket_bulanan_id uuid,
+
+  
   tanggal_jatuh_tempo date,
   status text check (status in ('aktif', 'nonaktif', 'suspend')) default 'aktif',
   disable_otomatis boolean default true,  -- exception per pelanggan buat auto-disable

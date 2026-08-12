@@ -67,13 +67,13 @@ export default function ImportLokasiPage() {
     reader.readAsText(file);
   }
 
-  async function handleImport() {
+  async function handleImport(createMissingHotspot: boolean) {
     setLoading(true);
     setResult(null);
 
     const res = await fetch("/api/pelanggan/import-lokasi", {
       method: "POST",
-      body: JSON.stringify({ rows: rows }),
+      body: JSON.stringify({ rows: rows, createMissingHotspot: createMissingHotspot }),
     });
     const json = await res.json();
     setResult(json);
@@ -121,14 +121,24 @@ export default function ImportLokasiPage() {
           </div>
         )}
 
-        <button
-          onClick={handleImport}
-          disabled={rows.length === 0 || loading}
-          className="px-5 py-2 rounded-lg text-sm text-white"
-          style={{ background: "var(--color-accent)", opacity: rows.length === 0 || loading ? 0.5 : 1 }}
-        >
-          {loading ? "Memproses..." : "Import " + rows.length + " Lokasi"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={function () { handleImport(false); }}
+            disabled={rows.length === 0 || loading}
+            className="px-5 py-2 rounded-lg text-sm text-white"
+            style={{ background: "var(--color-accent)", opacity: rows.length === 0 || loading ? 0.5 : 1 }}
+          >
+            {loading ? "Memproses..." : "Cocokkan yang Sudah Ada"}
+          </button>
+          <button
+            onClick={function () { handleImport(true); }}
+            disabled={rows.length === 0 || loading}
+            className="px-5 py-2 rounded-lg text-sm"
+            style={{ border: "1px solid var(--color-accent)", color: "var(--color-accent)", opacity: rows.length === 0 || loading ? 0.5 : 1 }}
+          >
+            {loading ? "Memproses..." : "Cocokkan + Buat Titik Hotspot Baru"}
+          </button>
+        </div>
       </div>
 
       {result && (
