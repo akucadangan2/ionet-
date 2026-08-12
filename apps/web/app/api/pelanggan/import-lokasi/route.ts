@@ -27,8 +27,8 @@ function levenshtein(a: string, b: string): number {
 }
 
 function wordOverlapScore(nama1: string, nama2: string): number {
-  const words1 = nama1.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
-  const words2 = nama2.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
+  const words1 = nama1.toLowerCase().split(/[\s_]+/).filter((w) => w.length > 2);
+  const words2 = nama2.toLowerCase().split(/[\s_]+/).filter((w) => w.length > 2);
 
   if (words1.length === 0 || words2.length === 0) return 0;
 
