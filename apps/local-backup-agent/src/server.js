@@ -174,6 +174,22 @@ app.get("/mikrotik/queue-stats", checkAuth, async (req, res) => {
   }
 });
 
+app.post("/mikrotik/ping-gateway", checkAuth, async (req, res) => {
+  try {
+    var routerId = req.body.routerId;
+    var interfaceName = req.body.interfaceName;
+    var gatewayIp = req.body.gatewayIp;
+    if (!routerId) {
+      throw new Error("routerId diperlukan");
+    }
+    var config = await getRouterConfig(routerId);
+    var result = await mikrotik.pingGatewayViaInterface(config, interfaceName, gatewayIp);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 app.get("/snmp/olt-signal", checkAuth, async (req, res) => {
   try {
     const { host, community } = req.query;
