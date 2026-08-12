@@ -26,6 +26,21 @@ function levenshtein(a: string, b: string): number {
   return dp[a.length][b.length];
 }
 
+function wordOverlapScore(nama1: string, nama2: string): number {
+  const words1 = nama1.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
+  const words2 = nama2.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
+
+  if (words1.length === 0 || words2.length === 0) return 0;
+
+  let matchCount = 0;
+  for (const w1 of words1) {
+    if (words2.some((w2) => w2 === w1)) matchCount++;
+  }
+
+  const minWords = Math.min(words1.length, words2.length);
+  return matchCount / minWords;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -65,6 +80,21 @@ export async function POST(req: NextRequest) {
           if (!bestMatch || distance < bestMatch.distance) {
             bestMatch = { id: c.id, distance: distance };
           }
+        }
+      }
+
+      if (!bestMatch) {
+        let bestWordScore = 0;
+        let bestWordMatchId: string | null = null;
+        for (const c of candidates) {
+          const score = wordOverlapScore(row.nama, c.original);
+          if (score >= 0.67 && score > bestWordScore) {
+            bestWordScore = score;
+            bestWordMatchId = c.id;
+          }
+        }
+        if (bestWordMatchId) {
+          bestMatch = { id: bestWordMatchId, distance: 1 };
         }
       }
 
