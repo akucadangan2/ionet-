@@ -134,7 +134,7 @@ export default function ImportLokasiPage() {
       {result && (
         <div className="rounded-lg p-4" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
           <p className="text-sm font-medium mb-2">
-            {result.matched} dari {result.total} berhasil dicocokkan
+            {result.matched} dari {result.total} berhasil dicocokkan ({result.matchedExact} exact, {result.matchedFuzzy} fuzzy/typo)
           </p>
           {result.unmatched && result.unmatched.length > 0 && (
             <div>
