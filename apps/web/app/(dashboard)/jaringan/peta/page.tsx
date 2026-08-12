@@ -22,7 +22,7 @@ export default function PetaPage() {
       const { data: pelangganData } = await supabase
         .from("pelanggan")
         .select(`
-          id, nama, latitude, longitude, status,
+          id, nama, latitude, longitude, status, kml_kategori, kml_deskripsi,
           log_sinyal_olt(rx_power, tx_power, recorded_at)
         `)
         .not("latitude", "is", null)
@@ -35,6 +35,8 @@ export default function PetaPage() {
           ...p,
           rxPower: p.log_sinyal_olt?.[0]?.rx_power,
           txPower: p.log_sinyal_olt?.[0]?.tx_power,
+          kmlKategori: p.kml_kategori,
+          kmlDeskripsi: p.kml_deskripsi,
         }))
       );
       setLoading(false);

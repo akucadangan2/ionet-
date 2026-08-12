@@ -6,6 +6,8 @@ interface ParsedRow {
   nama: string;
   lat: number;
   lng: number;
+  kategori?: string;
+  deskripsi?: string;
 }
 
 export default function ImportLokasiPage() {
@@ -15,9 +17,48 @@ export default function ImportLokasiPage() {
   const [result, setResult] = useState<any>(null);
   const [parseError, setParseError] = useState("");
 
+  function extractStyleColors(xml: Document): Record<string, string> {
+    const styles = xml.getElementsByTagName("Style");
+    const colorMap: Record<string, string> = {};
+
+    for (let i = 0; i < styles.length; i++) {
+      const style = styles[i];
+      const styleId = style.getAttribute("id");
+      if (!styleId) continue;
+
+      const colorEl = style.getElementsByTagName("color")[0];
+      const iconStyle = style.getElementsByTagName("IconStyle")[0];
+      const iconColorEl = iconStyle ? iconStyle.getElementsByTagName("color")[0] : null;
+
+      const kmlColor = (iconColorEl || colorEl) ? (iconColorEl || colorEl)!.textContent : null;
+      if (kmlColor) {
+        colorMap[styleId] = kmlColorToLabel(kmlColor.trim());
+      }
+    }
+    return colorMap;
+  }
+
+  function kmlColorToLabel(kmlColor: string): string {
+    if (kmlColor.length < 8) return "Tidak diketahui";
+    const b = kmlColor.substring(2, 4);
+    const g = kmlColor.substring(4, 6);
+    const r = kmlColor.substring(6, 8);
+    const rn = parseInt(r, 16);
+    const gn = parseInt(g, 16);
+    const bn = parseInt(b, 16);
+
+    if (rn > 180 && gn < 100 && bn < 100) return "Merah (Minta Cabut)";
+    if (rn > 180 && gn > 180 && bn < 100) return "Kuning (Aktif + Reseller Voucher)";
+    if (gn > 130 && rn < 130 && bn < 130) return "Hijau (Aktif Bulanan/PPPoE)";
+    if (bn > 150 && rn < 130 && gn < 150) return "Biru (Titik Modem Hotspot)";
+    if (Math.abs(rn - gn) < 20 && Math.abs(gn - bn) < 20) return "Abu-abu (Tidak Aktif)";
+    return "Tidak diketahui";
+  }
+
   function parseKml(kmlText: string): ParsedRow[] {
     const parser = new DOMParser();
     const xml = parser.parseFromString(kmlText, "text/xml");
+    const styleColorMap = extractStyleColors(xml);
     const placemarks = xml.getElementsByTagName("Placemark");
     const parsed: ParsedRow[] = [];
 
@@ -25,6 +66,8 @@ export default function ImportLokasiPage() {
       const pm = placemarks[i];
       const nameEl = pm.getElementsByTagName("name")[0];
       const coordEl = pm.getElementsByTagName("coordinates")[0];
+      const descEl = pm.getElementsByTagName("description")[0];
+      const styleUrlEl = pm.getElementsByTagName("styleUrl")[0];
 
       if (!nameEl || !coordEl) continue;
 
@@ -39,7 +82,11 @@ export default function ImportLokasiPage() {
 
       if (isNaN(lat) || isNaN(lng)) continue;
 
-      parsed.push({ nama: nama, lat: lat, lng: lng });
+      const deskripsi = descEl && descEl.textContent ? descEl.textContent.trim() : "";
+      const styleId = styleUrlEl && styleUrlEl.textContent ? styleUrlEl.textContent.replace("#", "").trim() : "";
+      const kategori = styleColorMap[styleId] || "Tidak diketahui";
+
+      parsed.push({ nama: nama, lat: lat, lng: lng, kategori: kategori, deskripsi: deskripsi });
     }
     return parsed;
   }
@@ -111,7 +158,7 @@ export default function ImportLokasiPage() {
             {rows.slice(0, 10).map(function (r, i) {
               return (
                 <div key={i} style={{ color: "var(--color-ink-muted)" }}>
-                  {r.nama} &mdash; {r.lat.toFixed(5)}, {r.lng.toFixed(5)}
+                  {r.nama} &mdash; {r.lat.toFixed(5)}, {r.lng.toFixed(5)} {r.kategori && r.kategori !== "Tidak diketahui" && `(${r.kategori})`}
                 </div>
               );
             })}

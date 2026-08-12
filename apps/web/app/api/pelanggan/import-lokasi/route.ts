@@ -44,7 +44,7 @@ function wordOverlapScore(nama1: string, nama2: string): number {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const rows: { nama: string; lat: number; lng: number }[] = body.rows;
+    const rows: { nama: string; lat: number; lng: number; kategori?: string; deskripsi?: string }[] = body.rows;
 
     if (!rows || !Array.isArray(rows)) {
       return NextResponse.json({ message: "Format data tidak valid" }, { status: 400 });
@@ -110,6 +110,8 @@ export async function POST(req: NextRequest) {
             latitude: row.lat,
             longitude: row.lng,
             status: "aktif",
+            kml_kategori: row.kategori || null,
+            kml_deskripsi: row.deskripsi || null,
           });
 
           if (!insertError) {
@@ -125,7 +127,12 @@ export async function POST(req: NextRequest) {
 
       const { error } = await supabase
         .from("pelanggan")
-        .update({ latitude: row.lat, longitude: row.lng })
+        .update({
+          latitude: row.lat,
+          longitude: row.lng,
+          kml_kategori: row.kategori || null,
+          kml_deskripsi: row.deskripsi || null,
+        })
         .eq("id", bestMatch.id);
 
       if (!error) {
