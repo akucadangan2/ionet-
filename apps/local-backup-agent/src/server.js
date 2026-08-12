@@ -203,25 +203,24 @@ app.get("/snmp/olt-signal", checkAuth, async (req, res) => {
 
     const nameMap = {};
     names.results.forEach((r) => {
-      const index = r.oid.split(".").pop();
-      nameMap[index] = r.value.replace(/\0/g, "").trim();
+      const match = r.oid.match(/\.2\.1\.2\.(\d+)$/);
+      if (match) {
+        nameMap[match[1]] = r.value.replace(/\0/g, "").trim();
+      }
     });
 
-    const signals = powers.results
-      .filter((r) => r.oid.endsWith(".0.0"))
-      .map((r) => {
-        const parts = r.oid.split(".");
-        const index = parts[parts.length - 3];
-        return {
+    const signals = [];
+    powers.results.forEach((r) => {
+      const match = r.oid.match(/\.3\.1\.4\.(\d+)\.0\.0$/);
+      if (match) {
+        const index = match[1];
+        signals.push({
           onuIndex: index,
           name: nameMap[index] || null,
           rxPowerDbm: Number(r.value) / 100,
-        };
-      });
-
-    // Debug sementara - biar kelihatan kenapa name-matching gagal
-    console.log("Sample nameMap keys:", Object.keys(nameMap).slice(0, 5));
-    console.log("Sample signal index:", signals[0]?.onuIndex);
+        });
+      }
+    });
 
     res.json({ signals });
   } catch (err) {
