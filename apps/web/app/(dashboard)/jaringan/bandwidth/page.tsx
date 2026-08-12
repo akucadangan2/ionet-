@@ -56,32 +56,55 @@ function SpeedBar({ label, bytes, limit, color }: { label: string; bytes: number
   );
 }
 
+const PAGE_SIZE_OPTIONS = [20, 40, -1];
+
+function pageSizeLabel(size: number) {
+  return size === -1 ? "Semua" : String(size);
+}
+
 export default function BandwidthPage() {
   const [pelanggan, setPelanggan] = useState<PelangganBandwidth[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<string | null>(null);
   const [uploadInput, setUploadInput] = useState("");
   const [downloadInput, setDownloadInput] = useState("");
+  const [pageSize, setPageSize] = useState(20);
+  const [page, setPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
 
   async function loadData() {
     setLoading(true);
-    const result = await supabase
+
+    let query = supabase
       .from("pelanggan")
       .select(
-        "id, nama, bandwidth_upload_limit, bandwidth_download_limit, log_bandwidth(upload_bytes, download_bytes, recorded_at)"
+        "id, nama, bandwidth_upload_limit, bandwidth_download_limit, log_bandwidth(upload_bytes, download_bytes, recorded_at)",
+        { count: "exact" }
       )
       .not("bandwidth_upload_limit", "is", null)
       .order("recorded_at", { foreignTable: "log_bandwidth", ascending: false })
-      .limit(1, { foreignTable: "log_bandwidth" })
-      .limit(50);
+      .limit(1, { foreignTable: "log_bandwidth" });
 
+    if (pageSize !== -1) {
+      const from = page * pageSize;
+      const to = from + pageSize - 1;
+      query = query.range(from, to);
+    }
+
+    const result = await query;
     setPelanggan(result.data || []);
+    setTotalCount(result.count || 0);
     setLoading(false);
   }
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [page, pageSize]);
+
+  function changePageSize(newSize: number) {
+    setPageSize(newSize);
+    setPage(0);
+  }
 
   function startEdit(p: PelangganBandwidth) {
     setEditing(p.id);
@@ -98,95 +121,131 @@ export default function BandwidthPage() {
     loadData();
   }
 
-  if (loading) {
-    return <p style={{ color: "var(--color-ink-muted)" }}>Memuat...</p>;
-  }
-
   const inputStyle = { border: "1px solid var(--color-border)", borderRadius: 6, padding: "4px 8px", width: 70 };
+  const totalPages = pageSize === -1 ? 1 : Math.ceil(totalCount / pageSize);
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold mb-1">Manajemen Bandwidth</h1>
+      <div className="flex items-center justify-between mb-1">
+        <h1 className="text-2xl font-semibold">Manajemen Bandwidth</h1>
+        <div className="flex items-center gap-2 text-sm">
+          <span style={{ color: "var(--color-ink-muted)" }}>Tampilkan:</span>
+          {PAGE_SIZE_OPTIONS.map(function (size) {
+            return (
+              <button
+                key={size}
+                onClick={function () { changePageSize(size); }}
+                className="px-3 py-1 rounded text-sm"
+                style={{
+                  border: "1px solid var(--color-border)",
+                  background: pageSize === size ? "var(--color-accent)" : "transparent",
+                  color: pageSize === size ? "white" : "var(--color-ink)",
+                }}
+              >
+                {pageSizeLabel(size)}
+              </button>
+            );
+          })}
+        </div>
+      </div>
       <p className="text-sm mb-6" style={{ color: "var(--color-ink-muted)" }}>
-        {pelanggan.length} pelanggan dengan queue bandwidth aktif
+        {totalCount} pelanggan dengan queue bandwidth aktif
       </p>
 
-      <div className="rounded-lg overflow-hidden" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
-        <table className="w-full">
-          <thead>
-            <tr style={{ background: "var(--color-bg)" }}>
-              <th className="text-left p-3 text-sm">Pelanggan</th>
-              <th className="text-left p-3 text-sm">Limit</th>
-              <th className="text-left p-3 text-sm">Usage Upload</th>
-              <th className="text-left p-3 text-sm">Usage Download</th>
-              <th className="text-left p-3 text-sm">Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pelanggan.map(function (p) {
-              const log = p.log_bandwidth && p.log_bandwidth[0];
-              return (
-                <tr key={p.id} style={{ borderTop: "1px solid var(--color-border)" }}>
-                  <td className="p-3 text-sm">{p.nama}</td>
-                  <td className="p-3 text-sm">
-                    {editing === p.id ? (
-                      <div className="flex gap-1 items-center">
-                        <input value={uploadInput} onChange={function (e) { setUploadInput(e.target.value); }} style={inputStyle} />
-                        /
-                        <input value={downloadInput} onChange={function (e) { setDownloadInput(e.target.value); }} style={inputStyle} />
-                      </div>
-                    ) : (
-                      p.bandwidth_upload_limit + " / " + p.bandwidth_download_limit
-                    )}
-                  </td>
-                  <td className="p-3">
-                    <SpeedBar
-                      label="Upload"
-                      bytes={log ? log.upload_bytes : 0}
-                      limit={p.bandwidth_upload_limit}
-                      color="var(--color-accent)"
-                    />
-                  </td>
-                  <td className="p-3">
-                    <SpeedBar
-                      label="Download"
-                      bytes={log ? log.download_bytes : 0}
-                      limit={p.bandwidth_download_limit}
-                      color="var(--color-signal-good)"
-                    />
-                  </td>
-                  <td className="p-3">
-                    {editing === p.id ? (
-                      <button
-                        onClick={function () { saveEdit(p.id); }}
-                        className="px-3 py-1.5 rounded text-sm text-white"
-                        style={{ background: "var(--color-signal-good)" }}
-                      >
-                        Simpan
-                      </button>
-                    ) : (
-                      <button
-                        onClick={function () { startEdit(p); }}
-                        className="px-3 py-1.5 rounded text-sm"
-                        style={{ border: "1px solid var(--color-border)" }}
-                      >
-                        Edit
-                      </button>
-                    )}
+      {loading ? (
+        <p style={{ color: "var(--color-ink-muted)" }}>Memuat...</p>
+      ) : (
+        <div className="rounded-lg overflow-hidden" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+          <table className="w-full">
+            <thead>
+              <tr style={{ background: "var(--color-bg)" }}>
+                <th className="text-left p-3 text-sm">Pelanggan</th>
+                <th className="text-left p-3 text-sm">Limit</th>
+                <th className="text-left p-3 text-sm">Usage Upload</th>
+                <th className="text-left p-3 text-sm">Usage Download</th>
+                <th className="text-left p-3 text-sm">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pelanggan.map(function (p) {
+                const log = p.log_bandwidth && p.log_bandwidth[0];
+                return (
+                  <tr key={p.id} style={{ borderTop: "1px solid var(--color-border)" }}>
+                    <td className="p-3 text-sm">{p.nama}</td>
+                    <td className="p-3 text-sm">
+                      {editing === p.id ? (
+                        <div className="flex gap-1 items-center">
+                          <input value={uploadInput} onChange={function (e) { setUploadInput(e.target.value); }} style={inputStyle} />
+                          /
+                          <input value={downloadInput} onChange={function (e) { setDownloadInput(e.target.value); }} style={inputStyle} />
+                        </div>
+                      ) : (
+                        p.bandwidth_upload_limit + " / " + p.bandwidth_download_limit
+                      )}
+                    </td>
+                    <td className="p-3">
+                      <SpeedBar label="Upload" bytes={log ? log.upload_bytes : 0} limit={p.bandwidth_upload_limit} color="var(--color-accent)" />
+                    </td>
+                    <td className="p-3">
+                      <SpeedBar label="Download" bytes={log ? log.download_bytes : 0} limit={p.bandwidth_download_limit} color="var(--color-signal-good)" />
+                    </td>
+                    <td className="p-3">
+                      {editing === p.id ? (
+                        <button
+                          onClick={function () { saveEdit(p.id); }}
+                          className="px-3 py-1.5 rounded text-sm text-white"
+                          style={{ background: "var(--color-signal-good)" }}
+                        >
+                          Simpan
+                        </button>
+                      ) : (
+                        <button
+                          onClick={function () { startEdit(p); }}
+                          className="px-3 py-1.5 rounded text-sm"
+                          style={{ border: "1px solid var(--color-border)" }}
+                        >
+                          Edit
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+              {pelanggan.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="text-center py-8 text-sm" style={{ color: "var(--color-ink-muted)" }}>
+                    Belum ada pelanggan dengan queue bandwidth. Set limit dulu lewat halaman Data Pelanggan.
                   </td>
                 </tr>
-              );
-            })}
-            {pelanggan.length === 0 && (
-              <tr>
-                <td colSpan={5} className="text-center py-8 text-sm" style={{ color: "var(--color-ink-muted)" }}>
-                  Belum ada pelanggan dengan queue bandwidth. Set limit dulu lewat halaman Data Pelanggan.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+              )}
+            </tbody>
+          </table>
+
+          {pageSize !== -1 && totalPages > 1 && (
+            <div className="flex items-center justify-between p-3" style={{ borderTop: "1px solid var(--color-border)" }}>
+              <button
+                onClick={function () { setPage(Math.max(page - 1, 0)); }}
+                disabled={page === 0}
+                className="px-3 py-1.5 rounded text-sm"
+                style={{ border: "1px solid var(--color-border)", opacity: page === 0 ? 0.4 : 1 }}
+              >
+                Sebelumnya
+              </button>
+              <span className="text-sm" style={{ color: "var(--color-ink-muted)" }}>
+                Halaman {page + 1} dari {totalPages}
+              </span>
+              <button
+                onClick={function () { setPage(Math.min(page + 1, totalPages - 1)); }}
+                disabled={page >= totalPages - 1}
+                className="px-3 py-1.5 rounded text-sm"
+                style={{ border: "1px solid var(--color-border)", opacity: page >= totalPages - 1 ? 0.4 : 1 }}
+              >
+                Selanjutnya
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
