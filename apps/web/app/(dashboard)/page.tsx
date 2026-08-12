@@ -20,6 +20,7 @@ import {
   Server,
   MapPin,
   UserCog,
+  Zap,
 } from "lucide-react";
 
 function getGreeting() {
@@ -56,6 +57,7 @@ const menuGroups = [
       { href: "/jaringan/bandwidth", label: "Bandwidth", icon: Gauge },
       { href: "/jaringan/uplink-monitoring", label: "Monitoring Uplink", icon: Radio },
       { href: "/jaringan/radius", label: "RADIUS", icon: Server },
+      { href: "/jaringan/sinyal-olt", label: "Sinyal OLT", icon: Zap },
       { href: "/jaringan/lokasi", label: "Lokasi", icon: MapPin },
     ],
   },
@@ -155,7 +157,7 @@ export default function DashboardHome() {
     },
     {
       label: "Pendapatan Bulan Ini",
-      value: `Rp ${stats.pendapatanBulanIni.toLocaleString("id-ID")}`,
+      value: "Rp " + stats.pendapatanBulanIni.toLocaleString("id-ID"),
       icon: Wallet,
       color: "var(--color-signal-good)",
       bg: "rgba(47,174,96,0.1)",
@@ -170,7 +172,7 @@ export default function DashboardHome() {
     },
     {
       label: "Status Router",
-      value: `${stats.totalRouter - stats.routerOffline}/${stats.totalRouter}`,
+      value: (stats.totalRouter - stats.routerOffline) + "/" + stats.totalRouter,
       icon: Wifi,
       color: stats.routerOffline > 0 ? "var(--color-signal-bad)" : "var(--color-signal-good)",
       bg: stats.routerOffline > 0 ? "rgba(229,57,53,0.1)" : "rgba(47,174,96,0.1)",
@@ -189,29 +191,32 @@ export default function DashboardHome() {
       </div>
 
       <div className="grid grid-cols-4 gap-4 mb-8">
-        {statCards.map((card, i) => (
-          <div
-            key={card.label}
-            className={`stagger-${Math.min(i + 2, 5)} p-5 rounded-xl transition-transform hover:-translate-y-0.5`}
-            style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}
-          >
+        {statCards.map((card, i) => {
+          const Icon = card.icon;
+          return (
             <div
-              className="w-10 h-10 rounded-lg flex items-center justify-center mb-3"
-              style={{ background: card.bg }}
+              key={card.label}
+              className={"stagger-" + Math.min(i + 2, 5) + " p-5 rounded-xl transition-transform hover:-translate-y-0.5"}
+              style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}
             >
-              <card.icon size={20} color={card.color} strokeWidth={2} />
+              <div
+                className="w-10 h-10 rounded-lg flex items-center justify-center mb-3"
+                style={{ background: card.bg }}
+              >
+                <Icon size={20} color={card.color} strokeWidth={2} />
+              </div>
+              <p className="text-xs uppercase tracking-wide mb-1" style={{ color: "var(--color-ink-muted)" }}>
+                {card.label}
+              </p>
+              <p
+                className={card.small ? "text-xl font-semibold" : "text-3xl font-semibold"}
+                style={{ fontFamily: "var(--font-display)" }}
+              >
+                {loading ? "..." : card.value}
+              </p>
             </div>
-            <p className="text-xs uppercase tracking-wide mb-1" style={{ color: "var(--color-ink-muted)" }}>
-              {card.label}
-            </p>
-            <p
-              className={card.small ? "text-xl font-semibold" : "text-3xl font-semibold"}
-              style={{ fontFamily: "var(--font-display)" }}
-            >
-              {loading ? "..." : card.value}
-            </p>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="grid gap-6" style={{ gridTemplateColumns: "1.4fr 1fr" }}>
@@ -226,17 +231,20 @@ export default function DashboardHome() {
                   {group.label}
                 </p>
                 <div className="grid grid-cols-2 gap-2">
-                  {group.items.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className="flex items-center gap-2.5 p-3 rounded-lg text-sm transition-all hover:shadow-sm"
-                      style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}
-                    >
-                      <item.icon size={16} color="var(--color-accent)" strokeWidth={2} />
-                      {item.label}
-                    </Link>
-                  ))}
+                  {group.items.map((item) => {
+                    const ItemIcon = item.icon;
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className="flex items-center gap-2.5 p-3 rounded-lg text-sm transition-all hover:shadow-sm"
+                        style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}
+                      >
+                        <ItemIcon size={16} color="var(--color-accent)" strokeWidth={2} />
+                        {item.label}
+                      </Link>
+                    );
+                  })}
                 </div>
               </div>
             ))}
