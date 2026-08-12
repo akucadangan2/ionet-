@@ -327,6 +327,7 @@ export default function PelangganPage() {
             <th style={{ padding: 8 }}>Tipe</th>
             <th style={{ padding: 8 }}>Paket/Username</th>
             <th style={{ padding: 8 }}>Status</th>
+            <th style={{ padding: 8 }}>GPS</th>
             <th style={{ padding: 8 }}>Aksi</th>
           </tr>
         </thead>
@@ -343,6 +344,21 @@ export default function PelangganPage() {
                   : "-"}
               </td>
               <td style={{ padding: 8 }}>{p.status}</td>
+              <td style={{ padding: 8 }}>
+                {p.latitude && p.longitude ? (
+                  <a
+                    href={`https://www.google.com/maps?q=${p.latitude},${p.longitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: "var(--color-accent)", textDecoration: "none" }}
+                    title="Buka di Google Maps"
+                  >
+                    📍 Lihat
+                  </a>
+                ) : (
+                  <span style={{ color: "#999" }}>-</span>
+                )}
+              </td>
               <td style={{ padding: 8 }}>
                 <button onClick={() => openEditForm(p)}>Edit</button>
                 <button onClick={() => handleHapus(p.id)} style={{ marginLeft: 5 }}>
