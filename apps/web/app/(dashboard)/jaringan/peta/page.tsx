@@ -60,14 +60,26 @@ export default function PetaPage() {
             {routerOnline}/{routers.length} router online &middot; {pelanggan.length} titik pelanggan
           </p>
         </div>
-        <div className="flex items-center gap-4 text-sm">
+        <div className="flex items-center gap-3 text-xs flex-wrap">
           <span className="flex items-center gap-1.5">
-            <span style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--color-signal-good)", display: "inline-block" }} />
-            Online
+            <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#2FAE60", display: "inline-block" }} />
+            Aktif Bulanan
           </span>
           <span className="flex items-center gap-1.5">
-            <span style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--color-signal-bad)", display: "inline-block" }} />
-            Offline
+            <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#E8B923", display: "inline-block" }} />
+            Reseller Voucher
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#3B82F6", display: "inline-block" }} />
+            Modem Hotspot
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#D64545", display: "inline-block" }} />
+            Minta Cabut
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#9CA3AF", display: "inline-block" }} />
+            Tidak Aktif
           </span>
         </div>
       </div>

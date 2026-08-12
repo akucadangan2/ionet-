@@ -1,6 +1,5 @@
 // components/NetworkMap.tsx
 "use client";
-import { useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup, LayersControl } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -16,6 +15,27 @@ function makeIcon(color: string) {
 
 const iconOnline = makeIcon("#2FAE60");
 const iconOffline = makeIcon("#D64545");
+
+const iconHijau = makeIcon("#2FAE60");
+const iconKuning = makeIcon("#E8B923");
+const iconBiru = makeIcon("#3B82F6");
+const iconMerah = makeIcon("#D64545");
+const iconAbu = makeIcon("#9CA3AF");
+const iconDefault = makeIcon("#6B7280");
+
+function getIconByKategori(kategori?: string) {
+  if (!kategori) return iconDefault;
+  if (kategori.indexOf("Hijau") === 0) return iconHijau;
+  if (kategori.indexOf("Kuning") === 0) return iconKuning;
+  if (kategori.indexOf("Biru") === 0) return iconBiru;
+  if (kategori.indexOf("Merah") === 0) return iconMerah;
+  if (kategori.indexOf("Abu") === 0) return iconAbu;
+  return iconDefault;
+}
+
+function stripHtmlTags(text: string): string {
+  return text.replace(/<[^>]*>/g, "").trim();
+}
 
 interface RouterPin {
   id: string;
@@ -77,10 +97,11 @@ export default function NetworkMap({ routers, pelanggan, center }: NetworkMapPro
       })}
 
       {pelanggan.map(function (p) {
+        const cleanDeskripsi = p.kmlDeskripsi ? stripHtmlTags(p.kmlDeskripsi) : "";
         return (
-          <Marker key={p.id} position={[p.latitude, p.longitude]} icon={p.status === "aktif" ? iconOnline : iconOffline}>
+          <Marker key={p.id} position={[p.latitude, p.longitude]} icon={getIconByKategori(p.kmlKategori)}>
             <Popup>
-              <div style={{ minWidth: 180 }}>
+              <div style={{ minWidth: 200, maxWidth: 260 }}>
                 <b>{p.nama}</b>
                 <br />
                 Status: {p.status}
@@ -93,13 +114,13 @@ export default function NetworkMap({ routers, pelanggan, center }: NetworkMapPro
                 {p.rxPower !== undefined && (
                   <>
                     <br />
-                    Rx: {p.rxPower} dBm {p.txPower !== undefined ? "\u00b7 Tx: " + p.txPower + " dBm" : ""}
+                    Rx: {p.rxPower} dBm{p.txPower !== undefined && p.txPower !== null ? " \u00b7 Tx: " + p.txPower + " dBm" : ""}
                   </>
                 )}
-                {p.kmlDeskripsi && (
+                {cleanDeskripsi && (
                   <>
                     <hr style={{ margin: "6px 0" }} />
-                    <div style={{ fontSize: 11, whiteSpace: "pre-wrap" }}>{p.kmlDeskripsi}</div>
+                    <div style={{ fontSize: 11, whiteSpace: "pre-wrap", color: "#555" }}>{cleanDeskripsi}</div>
                   </>
                 )}
               </div>
