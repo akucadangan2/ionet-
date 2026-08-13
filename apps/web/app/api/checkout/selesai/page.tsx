@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Wifi, Loader2, Phone } from "lucide-react";
+import { Loader2, Phone } from "lucide-react";
 
-export default function CheckoutSelesaiPage() {
+function CheckoutSelesaiContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get("id");
 
@@ -119,5 +119,13 @@ export default function CheckoutSelesaiPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function CheckoutSelesaiPage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: "100vh" }} />}>
+      <CheckoutSelesaiContent />
+    </Suspense>
   );
 }
