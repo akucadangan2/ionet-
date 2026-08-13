@@ -19,8 +19,9 @@ export async function processPaymentSuccess(orderId: string) {
       return { message: "sudah diproses sebelumnya" };
     }
 
-    const username = `V${Date.now().toString().slice(-8)}`;
-    const password = Math.random().toString(36).slice(-6);
+    const kodeVoucher = `V${Date.now().toString().slice(-6)}${Math.random().toString(36).slice(-3).toUpperCase()}`;
+    const username = kodeVoucher;
+    const password = kodeVoucher;
 
     const routerConfig = await getRouterConfigByLokasi(voucherTx.lokasi_id);
     await addHotspotUser(
