@@ -12,6 +12,120 @@ interface PaketBulanan {
   harga_per_bulan: number;
 }
 
+interface PaketVoucher {
+  id: string;
+  nama: string;
+  harga: number;
+  durasi_menit: number;
+}
+
+function VoucherSection() {
+  const [paketList, setPaketList] = useState<PaketVoucher[]>([]);
+  const [selectedPaket, setSelectedPaket] = useState("");
+  const [noHp, setNoHp] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  useEffect(function () {
+    async function load() {
+      const result = await supabase
+        .from("paket_voucher")
+        .select("id, nama, harga, durasi_menit")
+        .order("harga");
+      setPaketList(result.data || []);
+      if (result.data && result.data.length > 0) setSelectedPaket(result.data[0].id);
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  async function handleBeli() {
+    setErrorMsg("");
+    if (!selectedPaket || !noHp) {
+      setErrorMsg("Pilih paket dan isi nomor HP dulu");
+      return;
+    }
+    setProcessing(true);
+    try {
+      const res = await fetch("/api/checkout/voucher", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paketVoucherId: selectedPaket, noHpPembeli: noHp }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.paymentUrl) {
+        throw new Error(json.message || "Gagal memproses pembayaran");
+      }
+      window.location.href = json.paymentUrl;
+    } catch (err) {
+      setErrorMsg((err as Error).message);
+      setProcessing(false);
+    }
+  }
+
+  return (
+    <section style={{ padding: "64px 24px", maxWidth: 500, margin: "0 auto" }}>
+      <div className="text-center mb-8">
+        <h2 style={{ fontFamily: "var(--font-display)", fontSize: 28, marginBottom: 12 }}>
+          Butuh Internet Sementara?
+        </h2>
+        <p style={{ color: "var(--color-ink-muted)", lineHeight: 1.7 }}>
+          Beli voucher hotspot langsung dari sini, bayar pakai QRIS
+        </p>
+      </div>
+
+      {loading ? (
+        <p className="text-center" style={{ color: "var(--color-ink-muted)" }}>Memuat paket...</p>
+      ) : (
+        <div className="rounded-xl p-6" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+          <label className="text-xs font-medium mb-2 block" style={{ color: "var(--color-ink-muted)" }}>
+            Pilih Paket
+          </label>
+          <select
+            value={selectedPaket}
+            onChange={function (e) { setSelectedPaket(e.target.value); }}
+            className="w-full mb-4"
+            style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "10px 14px" }}
+          >
+            {paketList.map(function (p) {
+              return (
+                <option key={p.id} value={p.id}>
+                  {p.nama} - Rp{Number(p.harga).toLocaleString("id-ID")}
+                </option>
+              );
+            })}
+          </select>
+
+          <label className="text-xs font-medium mb-2 block" style={{ color: "var(--color-ink-muted)" }}>
+            Nomor HP (untuk kirim voucher)
+          </label>
+          <input
+            value={noHp}
+            onChange={function (e) { setNoHp(e.target.value); }}
+            placeholder="08xxxxxxxxxx"
+            className="w-full mb-4"
+            style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "10px 14px" }}
+          />
+
+          {errorMsg && (
+            <p className="text-sm mb-4" style={{ color: "var(--color-signal-bad)" }}>{errorMsg}</p>
+          )}
+
+          <button
+            onClick={handleBeli}
+            disabled={processing}
+            className="w-full py-3 rounded-lg text-sm font-medium text-white"
+            style={{ background: "var(--color-accent)", border: "none", opacity: processing ? 0.6 : 1 }}
+          >
+            {processing ? "Memproses..." : "Bayar dengan QRIS"}
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function KatalogPage() {
   const [paketBulanan, setPaketBulanan] = useState<PaketBulanan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,10 +238,7 @@ export default function KatalogPage() {
         </div>
       </section>
 
-      <section style={{ padding: "64px 24px", maxWidth: 700, margin: "0 auto", textAlign: "center" }}>
-        <h2 style={{ fontFamily: "var(--font-display)", fontSize: 28, marginBottom: 12 }}>Butuh Internet Sementara?</h2>
-        <p style={{ color: "var(--color-ink-muted)", lineHeight: 1.7 }}>Selain langganan bulanan, kami juga menyediakan voucher hotspot harian dan mingguan, cocok untuk kos-kosan, warung, atau kebutuhan sementara. Bisa dibeli langsung di lokasi kami.</p>
-      </section>
+      <VoucherSection />
 
       <footer style={{ background: "var(--color-sidebar)", padding: "48px 24px", color: "#9CA3AF" }}>
         <div style={{ maxWidth: 800, margin: "0 auto", textAlign: "center" }}>
