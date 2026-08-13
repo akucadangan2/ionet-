@@ -117,15 +117,16 @@ export async function createCheckout(params: CheckoutParams): Promise<CheckoutRe
 export async function checkStatus(orderId: string) {
   const requestTarget = `/orders/v1/status/${orderId}`;
   const requestId = crypto.randomUUID();
-  const timestamp = new Date().toISOString();
+  const timestamp = isoTimestampNoMillis();
 
-  const { signature, digest } = generateSignature(
-    DOKU_CLIENT_ID,
-    requestId,
-    timestamp,
-    requestTarget,
-    ""
-  );
+  const componentSignature =
+    `Client-Id:${DOKU_CLIENT_ID}\n` +
+    `Request-Id:${requestId}\n` +
+    `Request-Timestamp:${timestamp}\n` +
+    `Request-Target:${requestTarget}`;
+
+  const hmac = crypto.createHmac("sha256", DOKU_SECRET_KEY).update(componentSignature).digest("base64");
+  const signature = `HMACSHA256=${hmac}`;
 
   const res = await fetch(`${DOKU_BASE_URL}${requestTarget}`, {
     method: "GET",
@@ -134,13 +135,8 @@ export async function checkStatus(orderId: string) {
       "Request-Id": requestId,
       "Request-Timestamp": timestamp,
       "Signature": signature,
-      "Digest": digest,
     },
   });
-
-  if (!res.ok) {
-    throw new Error(`DOKU check status gagal: ${res.status} ${await res.text()}`);
-  }
 
   return res.json();
 }

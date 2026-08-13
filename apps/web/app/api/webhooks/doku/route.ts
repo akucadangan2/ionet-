@@ -1,34 +1,47 @@
-// app/api/webhooks/doku/route.ts (versi ringkas setelah refactor)
+// app/api/webhooks/doku/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { processPaymentSuccess } from "@/lib/payment/process-payment";
 
 const DOKU_SECRET_KEY = process.env.DOKU_SECRET_KEY!;
 
-function verifyWebhookSignature(rawBody: string, receivedSignature: string, timestamp: string, requestId: string) {
-  const digest = crypto.createHash("sha256").update(rawBody).digest("base64");
+function verifyWebhookSignature(params: {
+  clientId: string;
+  requestId: string;
+  timestamp: string;
+  bodyString: string;
+  receivedSignature: string;
+}) {
+  const digest = crypto.createHash("sha256").update(params.bodyString).digest("base64");
   const componentSignature =
-    `Client-Id:${process.env.DOKU_CLIENT_ID}\n` +
-    `Request-Id:${requestId}\n` +
-    `Request-Timestamp:${timestamp}\n` +
-    `Request-Target:/webhooks/doku\n` +
+    `Client-Id:${params.clientId}\n` +
+    `Request-Id:${params.requestId}\n` +
+    `Request-Timestamp:${params.timestamp}\n` +
+    `Request-Target:/api/webhooks/doku\n` +
     `Digest:${digest}`;
-
   const expectedSignature = `HMACSHA256=${crypto
     .createHmac("sha256", DOKU_SECRET_KEY)
     .update(componentSignature)
     .digest("base64")}`;
-
-  return crypto.timingSafeEqual(Buffer.from(expectedSignature), Buffer.from(receivedSignature));
+  return expectedSignature === params.receivedSignature;
 }
 
 export async function POST(req: NextRequest) {
   const rawBody = await req.text();
-  const signature = req.headers.get("signature") ?? "";
-  const timestamp = req.headers.get("request-timestamp") ?? "";
+  const clientId = req.headers.get("client-id") ?? "";
   const requestId = req.headers.get("request-id") ?? "";
+  const timestamp = req.headers.get("request-timestamp") ?? "";
+  const receivedSignature = req.headers.get("signature") ?? "";
 
-  if (!verifyWebhookSignature(rawBody, signature, timestamp, requestId)) {
+  const isValid = verifyWebhookSignature({
+    clientId,
+    requestId,
+    timestamp,
+    bodyString: rawBody,
+    receivedSignature,
+  });
+
+  if (!isValid) {
     return NextResponse.json({ message: "invalid signature" }, { status: 401 });
   }
 
