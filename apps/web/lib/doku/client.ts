@@ -53,34 +53,34 @@ function generateSignature(
   return { signature: `HMACSHA256=${signature}`, digest };
 }
 
+function isoTimestampNoMillis(): string {
+  return new Date().toISOString().split(".")[0] + "Z";
+}
+
 export async function createCheckout(params: CheckoutParams): Promise<CheckoutResult> {
   const requestTarget = "/checkout/v1/payment";
   const requestId = crypto.randomUUID();
-  const timestamp = new Date().toISOString();
+  const timestamp = isoTimestampNoMillis();
 
   const body = JSON.stringify({
     order: {
-      amount: params.amount,
+      amount: Math.round(params.amount),
       invoice_number: params.orderId,
-      currency: "IDR",
-      session_id: params.orderId,
       callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/billing/voucher`,
-      line_items: [
-        { name: params.itemName, price: params.amount, quantity: 1 },
-      ],
+      callback_url_result: `${process.env.NEXT_PUBLIC_APP_URL}/billing/voucher`,
     },
     payment: {
-      payment_due_date: 15,
+      payment_due_date: 60,
     },
     customer: {
       name: params.customerName,
-      email: params.customerEmail,
-      phone: params.customerPhone,
-      country: "ID",
+    },
+    additional_info: {
+      override_notification_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/doku`,
     },
   });
 
-  const { signature, digest } = generateSignature(
+  const { signature } = generateSignature(
     DOKU_CLIENT_ID,
     requestId,
     timestamp,
@@ -96,20 +96,20 @@ export async function createCheckout(params: CheckoutParams): Promise<CheckoutRe
       "Request-Id": requestId,
       "Request-Timestamp": timestamp,
       "Signature": signature,
-      "Digest": digest,
     },
     body,
   });
 
-  if (!res.ok) {
-    throw new Error(`DOKU checkout gagal: ${res.status} ${await res.text()}`);
+  const json = await res.json();
+
+  if (!res.ok || !json?.response?.payment?.url) {
+    throw new Error(`DOKU checkout gagal: ${res.status} ${JSON.stringify(json)}`);
   }
 
-  const json = await res.json();
   return {
     orderId: params.orderId,
-    paymentUrl: json?.payment?.url,
-    expiredAt: json?.payment?.expired_date,
+    paymentUrl: json.response.payment.url,
+    expiredAt: json.response.payment.expired_date,
   };
 }
 
