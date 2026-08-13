@@ -44,10 +44,14 @@ export async function processPaymentSuccess(orderId: string) {
     const struk = await createStrukVoucher(orderId);
 
     if (voucherTx.no_hp_pembeli) {
-      await sendWhatsApp(
-        voucherTx.no_hp_pembeli,
-        `Pembayaran berhasil! Voucher kamu:\nUsername: ${username}\nPassword: ${password}\n\nStruk: ${process.env.NEXT_PUBLIC_APP_URL}/struk/${struk.id}`
-      );
+      try {
+        await sendWhatsApp(
+          voucherTx.no_hp_pembeli,
+          `Pembayaran berhasil! Voucher kamu:\nUsername: ${username}\nPassword: ${password}\n\nStruk: ${process.env.NEXT_PUBLIC_APP_URL}/struk/${struk.id}`
+        );
+      } catch (waError) {
+        console.error("Gagal kirim WA (voucher tetap berhasil dibuat):", waError);
+      }
     }
 
     return { message: "voucher berhasil dibuat" };
@@ -71,10 +75,14 @@ export async function processPaymentSuccess(orderId: string) {
 
     const adminContacts = await getActiveContacts("admin");
     for (const contact of adminContacts) {
-      await sendWhatsApp(
-        contact.no_hp,
-        `Ada pembayaran langganan bulanan masuk (${monthlyPayment.pelanggan?.nama}), menunggu validasi di dashboard.`
-      );
+      try {
+        await sendWhatsApp(
+          contact.no_hp,
+          `Ada pembayaran langganan bulanan masuk (${monthlyPayment.pelanggan?.nama}), menunggu validasi di dashboard.`
+        );
+      } catch (waError) {
+        console.error("Gagal kirim WA admin:", waError);
+      }
     }
 
     return { message: "menunggu validasi admin" };
