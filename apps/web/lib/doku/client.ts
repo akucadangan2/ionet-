@@ -66,8 +66,8 @@ export async function createCheckout(params: CheckoutParams): Promise<CheckoutRe
     order: {
       amount: Math.round(params.amount),
       invoice_number: params.orderId,
-      callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/billing/voucher`,
-      callback_url_result: `${process.env.NEXT_PUBLIC_APP_URL}/billing/voucher`,
+      callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/checkout/selesai?id=${params.orderId}`,
+      callback_url_result: `${process.env.NEXT_PUBLIC_APP_URL}/checkout/selesai?id=${params.orderId}`,
     },
     payment: {
       payment_due_date: 60,
