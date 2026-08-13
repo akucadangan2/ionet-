@@ -1,9 +1,16 @@
 // lib/doku/client.ts
 import crypto from "crypto";
 
-const DOKU_BASE_URL = process.env.DOKU_BASE_URL!;
-const DOKU_CLIENT_ID = process.env.DOKU_CLIENT_ID!;
-const DOKU_SECRET_KEY = process.env.DOKU_SECRET_KEY!;
+const IS_SANDBOX = process.env.DOKU_ENV === "sandbox";
+const DOKU_BASE_URL = IS_SANDBOX
+  ? "https://api-sandbox.doku.com"
+  : (process.env.DOKU_BASE_URL || "https://api.doku.com");
+const DOKU_CLIENT_ID = IS_SANDBOX
+  ? process.env.DOKU_SANDBOX_CLIENT_ID!
+  : process.env.DOKU_CLIENT_ID!;
+const DOKU_SECRET_KEY = IS_SANDBOX
+  ? process.env.DOKU_SANDBOX_SECRET_KEY!
+  : process.env.DOKU_SECRET_KEY!;
 
 interface CheckoutParams {
   orderId: string;
