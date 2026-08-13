@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
         lokasi_id: lokasiId,
         no_hp_pembeli: noHpPembeli,
         nominal_dibayar: paket.harga,
-        metode: "qris",
+        metode: "qris_doku",
         status: "pending",
       })
       .select("id")
