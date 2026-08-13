@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Loader2, Phone } from "lucide-react";
+import { Loader2, Phone, Copy, Check } from "lucide-react";
 
 function CheckoutSelesaiContent() {
   const searchParams = useSearchParams();
@@ -12,6 +12,7 @@ function CheckoutSelesaiContent() {
   const [kodeVoucher, setKodeVoucher] = useState<string | null>(null);
   const [paketNama, setPaketNama] = useState<string | null>(null);
   const [attempts, setAttempts] = useState(0);
+  const [copied, setCopied] = useState(false);
 
   useEffect(function () {
     if (!orderId) return;
@@ -43,8 +44,14 @@ function CheckoutSelesaiContent() {
 
   var kode = kodeVoucher ? kodeVoucher.split("/")[0] : "";
 
+  function handleCopy() {
+    navigator.clipboard.writeText(kode);
+    setCopied(true);
+    setTimeout(function () { setCopied(false); }, 2000);
+  }
+
   return (
-    <div style={{ minHeight: "100vh", background: "var(--color-bg)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+    <div style={{ minHeight: "100vh", background: "var(--color-bg)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
       {status === "lunas" && kode ? (
         <div
           className="stagger-1"
@@ -78,10 +85,33 @@ function CheckoutSelesaiContent() {
                 fontWeight: 700,
                 letterSpacing: 4,
                 color: "var(--color-ink)",
+                marginBottom: 12,
               }}
             >
               {kode}
             </p>
+            <button
+              onClick={handleCopy}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                width: "100%",
+                padding: "10px 0",
+                borderRadius: 8,
+                border: "1px solid var(--color-border)",
+                background: copied ? "var(--color-signal-good)" : "var(--color-bg)",
+                color: copied ? "white" : "var(--color-ink)",
+                fontSize: 13,
+                fontWeight: 500,
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+              }}
+            >
+              {copied ? <Check size={15} /> : <Copy size={15} />}
+              {copied ? "Kode Tersalin!" : "Salin Kode"}
+            </button>
           </div>
 
           <div style={{ background: "var(--color-bg)", padding: "16px 24px", fontSize: 13, color: "var(--color-ink-muted)", lineHeight: 1.7 }}>

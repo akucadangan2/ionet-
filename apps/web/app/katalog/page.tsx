@@ -65,7 +65,7 @@ function VoucherSection() {
   }
 
   return (
-    <section style={{ padding: "64px 24px", maxWidth: 500, margin: "0 auto" }}>
+    <section id="beli-voucher" style={{ padding: "48px 20px 100px", maxWidth: 500, margin: "0 auto" }}>
       <div className="text-center mb-8">
         <h2 style={{ fontFamily: "var(--font-display)", fontSize: 28, marginBottom: 12 }}>
           Butuh Internet Sementara?
@@ -157,6 +157,13 @@ export default function KatalogPage() {
     }
   }
 
+  function scrollToBeliVoucher() {
+    var el = document.getElementById("beli-voucher");
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth" });
+    }
+  }
+
   return (
     <div style={{ background: "var(--color-bg)", minHeight: "100vh" }}>
       <section className="relative overflow-hidden" style={{ background: "var(--color-sidebar)", padding: "80px 24px 100px" }}>
@@ -177,8 +184,8 @@ export default function KatalogPage() {
         </div>
       </section>
 
-      <section style={{ padding: "64px 24px", maxWidth: 1000, margin: "0 auto" }}>
-        <div className="grid gap-6" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
+      <section style={{ padding: "48px 20px", maxWidth: 1000, margin: "0 auto" }}>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="stagger-2 text-center">
             <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "rgba(30,136,229,0.1)" }}>
               <Zap size={26} color="var(--color-accent)" />
@@ -203,7 +210,7 @@ export default function KatalogPage() {
         </div>
       </section>
 
-      <section id="paket" style={{ padding: "64px 24px", background: "var(--color-surface)" }}>
+      <section id="paket" style={{ padding: "48px 20px", background: "var(--color-surface)" }}>
         <div style={{ maxWidth: 1000, margin: "0 auto" }}>
           <div className="text-center mb-12">
             <h2 style={{ fontFamily: "var(--font-display)", fontSize: 32, marginBottom: 12 }}>Paket Langganan Bulanan</h2>
@@ -219,7 +226,7 @@ export default function KatalogPage() {
           ) : null}
 
           {loading === false && paketBulanan.length > 0 ? (
-            <div className="grid gap-6" style={{ gridTemplateColumns: "repeat(" + Math.min(paketBulanan.length, 4) + ", 1fr)" }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
               {paketBulanan.map(function (p, i) {
                 var borderStyle = i === 1 ? "2px solid var(--color-accent)" : "1px solid var(--color-border)";
                 var staggerClass = "stagger-" + Math.min(i + 2, 5) + " rounded-xl p-6 text-center transition-transform hover:-translate-y-1";
@@ -240,10 +247,32 @@ export default function KatalogPage() {
 
       <VoucherSection />
 
-      <footer style={{ background: "var(--color-sidebar)", padding: "48px 24px", color: "#9CA3AF" }}>
+      <button
+        onClick={scrollToBeliVoucher}
+        style={{
+          position: "fixed",
+          bottom: 20,
+          left: "50%",
+          transform: "translateX(-50%)",
+          background: "var(--color-accent)",
+          color: "white",
+          border: "none",
+          borderRadius: 30,
+          padding: "14px 28px",
+          fontSize: 14,
+          fontWeight: 600,
+          boxShadow: "0 4px 20px rgba(30,136,229,0.4)",
+          cursor: "pointer",
+          zIndex: 50,
+        }}
+      >
+        Beli Voucher Sekarang
+      </button>
+
+      <footer style={{ background: "var(--color-sidebar)", padding: "48px 24px 80px", color: "#9CA3AF" }}>
         <div style={{ maxWidth: 800, margin: "0 auto", textAlign: "center" }}>
           <img src="/logo.png" alt="IONET Plus" style={{ height: 32, margin: "0 auto 20px" }} />
-          <div className="flex items-center justify-center gap-6 mb-4" style={{ fontSize: 14 }}>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-6 mb-4" style={{ fontSize: 14 }}>
             <span className="flex items-center gap-2">
               <MapPin size={16} />
               Tombariri, Minahasa, Sulawesi Utara
