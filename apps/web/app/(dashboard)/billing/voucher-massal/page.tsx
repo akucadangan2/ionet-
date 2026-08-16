@@ -220,8 +220,12 @@ export default function VoucherMassalPage() {
           margin-top: 6px;
         }
         @media print {
-          .no-print {
+          .no-print,
+          #dashboard-topnav {
             display: none !important;
+          }
+          main {
+            padding: 0 !important;
           }
           .voucher-print-grid {
             grid-template-columns: repeat(3, 1fr);
