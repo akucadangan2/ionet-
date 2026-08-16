@@ -48,11 +48,16 @@ export default function AbsensiPage() {
     );
   }, []);
 
+  useEffect(function () {
+    if (cameraActive && streamRef.current && videoRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+    }
+  }, [cameraActive]);
+
   async function startCamera() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
       streamRef.current = stream;
-      if (videoRef.current) videoRef.current.srcObject = stream;
       setCameraActive(true);
     } catch {
       setErrorMsg("Gagal mengakses kamera, pastikan izin kamera diaktifkan");
