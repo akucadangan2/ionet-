@@ -66,6 +66,20 @@ export async function GET() {
       }
     }
 
+    for (const result of results) {
+      const uplinkRow = (uplinkList || []).find((u) => u.nama === result.nama);
+      if (!uplinkRow) continue;
+
+      const historyResult = await supabase
+        .from("log_uplink_traffic")
+        .select("download_mbps, upload_mbps, recorded_at")
+        .eq("uplink_id", uplinkRow.id)
+        .order("recorded_at", { ascending: false })
+        .limit(20);
+
+      (result as any).history = (historyResult.data || []).reverse();
+    }
+
     return NextResponse.json({ uplinks: results });
   } catch (err) {
     return NextResponse.json({ message: (err as Error).message }, { status: 500 });
