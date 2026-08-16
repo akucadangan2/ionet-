@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase/client";
 
 interface PaketVoucher {
   id: string; nama: string; harga: number; durasi_menit: number; profile_mikrotik: string;
+  limit_data_mb: number | null; limit_kecepatan: string | null;
 }
 interface PaketBulanan {
   id: string; nama: string; harga_per_bulan: number; kecepatan: string;
@@ -17,7 +18,7 @@ export default function PaketPage() {
   const [voucherList, setVoucherList] = useState<PaketVoucher[]>([]);
   const [bulananList, setBulananList] = useState<PaketBulanan[]>([]);
   const [loading, setLoading] = useState(true);
-  const [voucherForm, setVoucherForm] = useState({ id: "", nama: "", harga: "", durasi_menit: "", profile_mikrotik: "" });
+  const [voucherForm, setVoucherForm] = useState({ id: "", nama: "", harga: "", durasi_menit: "", profile_mikrotik: "", limit_data_mb: "", limit_kecepatan: "" });
   const [showVoucherForm, setShowVoucherForm] = useState(false);
   const [bulananForm, setBulananForm] = useState({ id: "", nama: "", harga_per_bulan: "", kecepatan: "" });
   const [showBulananForm, setShowBulananForm] = useState(false);
@@ -40,10 +41,12 @@ export default function PaketPage() {
         id: voucherForm.id || undefined, nama: voucherForm.nama,
         harga: parseFloat(voucherForm.harga), durasi_menit: parseInt(voucherForm.durasi_menit),
         profile_mikrotik: voucherForm.profile_mikrotik,
+        limit_data_mb: voucherForm.limit_data_mb ? parseInt(voucherForm.limit_data_mb) : null,
+        limit_kecepatan: voucherForm.limit_kecepatan || null,
       }),
     });
     setShowVoucherForm(false);
-    setVoucherForm({ id: "", nama: "", harga: "", durasi_menit: "", profile_mikrotik: "" });
+    setVoucherForm({ id: "", nama: "", harga: "", durasi_menit: "", profile_mikrotik: "", limit_data_mb: "", limit_kecepatan: "" });
     loadData();
   }
 
@@ -54,7 +57,12 @@ export default function PaketPage() {
   }
 
   function editVoucher(p: PaketVoucher) {
-    setVoucherForm({ id: p.id, nama: p.nama, harga: p.harga.toString(), durasi_menit: p.durasi_menit.toString(), profile_mikrotik: p.profile_mikrotik });
+    setVoucherForm({
+      id: p.id, nama: p.nama, harga: p.harga.toString(), durasi_menit: p.durasi_menit.toString(),
+      profile_mikrotik: p.profile_mikrotik,
+      limit_data_mb: p.limit_data_mb ? p.limit_data_mb.toString() : "",
+      limit_kecepatan: p.limit_kecepatan || "",
+    });
     setShowVoucherForm(true);
   }
 
@@ -94,7 +102,7 @@ export default function PaketPage() {
             Paket Voucher Hotspot
           </h2>
           <button
-            onClick={() => { setVoucherForm({ id: "", nama: "", harga: "", durasi_menit: "", profile_mikrotik: "" }); setShowVoucherForm(true); }}
+            onClick={() => { setVoucherForm({ id: "", nama: "", harga: "", durasi_menit: "", profile_mikrotik: "", limit_data_mb: "", limit_kecepatan: "" }); setShowVoucherForm(true); }}
             className="px-3 py-1.5 rounded text-sm font-medium text-white"
             style={{ background: "var(--color-accent)" }}
           >
@@ -108,6 +116,8 @@ export default function PaketPage() {
             <input placeholder="Harga" type="number" value={voucherForm.harga} onChange={(e) => setVoucherForm({ ...voucherForm, harga: e.target.value })} style={{ ...inputStyle, width: 110 }} />
             <input placeholder="Durasi (menit)" type="number" value={voucherForm.durasi_menit} onChange={(e) => setVoucherForm({ ...voucherForm, durasi_menit: e.target.value })} style={{ ...inputStyle, width: 130 }} />
             <input placeholder="Profile Mikrotik" value={voucherForm.profile_mikrotik} onChange={(e) => setVoucherForm({ ...voucherForm, profile_mikrotik: e.target.value })} style={inputStyle} />
+            <input placeholder="Limit Data (MB, kosongkan jika unlimited)" type="number" value={voucherForm.limit_data_mb} onChange={(e) => setVoucherForm({ ...voucherForm, limit_data_mb: e.target.value })} style={{ ...inputStyle, width: 200 }} />
+            <input placeholder="Limit Kecepatan (misal 3M/3M)" value={voucherForm.limit_kecepatan} onChange={(e) => setVoucherForm({ ...voucherForm, limit_kecepatan: e.target.value })} style={inputStyle} />
             <button onClick={saveVoucher} className="px-3 py-2 rounded text-sm text-white" style={{ background: "var(--color-signal-good)" }}>Simpan</button>
             <button onClick={() => setShowVoucherForm(false)} className="px-3 py-2 rounded text-sm" style={{ border: "1px solid var(--color-border)" }}>Batal</button>
           </div>
@@ -115,7 +125,7 @@ export default function PaketPage() {
 
         <div className="rounded-lg overflow-hidden" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
           <table>
-            <thead><tr><th>Nama</th><th>Harga</th><th>Durasi</th><th>Profile Mikrotik</th><th>Aksi</th></tr></thead>
+            <thead><tr><th>Nama</th><th>Harga</th><th>Durasi</th><th>Profile Mikrotik</th><th>Limit Data</th><th>Aksi</th></tr></thead>
             <tbody>
               {voucherList.map((p) => (
                 <tr key={p.id}>
@@ -123,6 +133,7 @@ export default function PaketPage() {
                   <td>Rp {p.harga.toLocaleString("id-ID")}</td>
                   <td>{p.durasi_menit} menit</td>
                   <td className="mono">{p.profile_mikrotik}</td>
+                  <td className="mono">{p.limit_data_mb ? p.limit_data_mb + " MB" : "Unlimited"}</td>
                   <td>
                     <button onClick={() => editVoucher(p)} className="px-2 py-1 rounded text-sm mr-1" style={{ border: "1px solid var(--color-border)" }}>Edit</button>
                     <button onClick={() => deleteVoucher(p.id)} className="px-2 py-1 rounded text-sm" style={{ border: "1px solid var(--color-signal-bad)", color: "var(--color-signal-bad)" }}>Hapus</button>

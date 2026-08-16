@@ -23,12 +23,17 @@ export async function processPaymentSuccess(orderId: string) {
     const username = kodeVoucher;
     const password = kodeVoucher;
 
-    const routerConfig = await getRouterConfigByLokasi(voucherTx.lokasi_id);
+    const routerId = await getRouterConfigByLokasi(voucherTx.lokasi_id);
+    const limitBytesTotal = voucherTx.paket_voucher.limit_data_mb
+      ? voucherTx.paket_voucher.limit_data_mb * 1024 * 1024
+      : undefined;
     await addHotspotUser(
-      routerConfig,
+      routerId,
       username,
       password,
-      voucherTx.paket_voucher.profile_mikrotik
+      voucherTx.paket_voucher.profile_mikrotik,
+      undefined,
+      limitBytesTotal
     );
 
     await supabase

@@ -3,9 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase/admin";
 
 export async function POST(req: NextRequest) {
-  const { id, nama, harga, durasi_menit, profile_mikrotik } = await req.json();
+  const { id, nama, harga, durasi_menit, profile_mikrotik, limit_data_mb, limit_kecepatan } = await req.json();
 
-  const payload = { nama, harga, durasi_menit, profile_mikrotik };
+  const payload = { nama, harga, durasi_menit, profile_mikrotik, limit_data_mb, limit_kecepatan };
 
   const { error } = id
     ? await supabase.from("paket_voucher").update(payload).eq("id", id)

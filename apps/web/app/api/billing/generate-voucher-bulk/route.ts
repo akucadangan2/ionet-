@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
 
     const paketResult = await supabase
       .from("paket_voucher")
-      .select("id, nama, harga, profile_mikrotik")
+      .select("id, nama, harga, profile_mikrotik, limit_data_mb")
       .eq("id", paketVoucherId)
       .single();
 
@@ -53,7 +53,8 @@ export async function POST(req: NextRequest) {
     for (let i = 0; i < jumlah; i++) {
       const kode = generateShortCode();
       try {
-        await addHotspotUser(routerId, kode, kode, paket.profile_mikrotik);
+        const limitBytesTotal = paket.limit_data_mb ? paket.limit_data_mb * 1024 * 1024 : undefined;
+        await addHotspotUser(routerId, kode, kode, paket.profile_mikrotik, undefined, limitBytesTotal);
 
         const insertResult = await supabase
           .from("transaksi_voucher")
