@@ -192,32 +192,46 @@ app.post("/mikrotik/ping-gateway", checkAuth, async (req, res) => {
 
 app.get("/snmp/olt-signal", checkAuth, async (req, res) => {
   try {
-    const { host, community } = req.query;
-    const targetHost = host || "192.168.44.102";
+    const { host, community, oidNama, oidRxPower, powerDivisor } = req.query;
+    const targetHost = host;
     const targetCommunity = community || "public";
+    const divisor = Number(powerDivisor) || 100;
 
-    const [names, powers] = await Promise.all([
-      snmpWalk(targetHost, targetCommunity, "1.3.6.1.4.1.50224.3.12.2.1.2"),
-      snmpWalk(targetHost, targetCommunity, "1.3.6.1.4.1.50224.3.12.3.1.4"),
-    ]);
+    if (!targetHost || !oidRxPower) {
+      throw new Error("host dan oidRxPower diperlukan");
+    }
+
+    const walkPromises = [snmpWalk(targetHost, targetCommunity, oidRxPower)];
+    if (oidNama) {
+      walkPromises.unshift(snmpWalk(targetHost, targetCommunity, oidNama));
+    }
+
+    const walkResults = await Promise.all(walkPromises);
+    const powers = oidNama ? walkResults[1] : walkResults[0];
+    const names = oidNama ? walkResults[0] : { results: [] };
 
     const nameMap = {};
-    names.results.forEach((r) => {
-      const match = r.oid.match(/\.2\.1\.2\.(\d+)$/);
-      if (match) {
-        nameMap[match[1]] = r.value.replace(/\0/g, "").trim();
-      }
-    });
+    if (oidNama) {
+      const nameBaseParts = oidNama.split(".").length;
+      names.results.forEach((r) => {
+        const oidParts = r.oid.split(".");
+        const index = oidParts[nameBaseParts];
+        if (index) {
+          nameMap[index] = r.value.replace(/\0/g, "").trim();
+        }
+      });
+    }
 
+    const powerBaseParts = oidRxPower.split(".").length;
     const signals = [];
     powers.results.forEach((r) => {
-      const match = r.oid.match(/\.3\.1\.4\.(\d+)\.0\.0$/);
-      if (match) {
-        const index = match[1];
+      const oidParts = r.oid.split(".");
+      const index = oidParts[powerBaseParts];
+      if (index) {
         signals.push({
           onuIndex: index,
           name: nameMap[index] || null,
-          rxPowerDbm: Number(r.value) / 100,
+          rxPowerDbm: Number(r.value) / divisor,
         });
       }
     });
