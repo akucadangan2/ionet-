@@ -71,6 +71,7 @@ const menuGroups = [
       { href: "/tiket", label: "Tiket Gangguan", icon: AlertTriangle },
       { href: "/operasional/karyawan", label: "Data Karyawan", icon: Users },
       { href: "/pengguna", label: "Pengguna", icon: UserCog },
+      { href: "/operasional/absensi", label: "Rekap Absensi", icon: AlertTriangle },
     ],
   },
 ];
