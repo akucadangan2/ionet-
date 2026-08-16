@@ -4,7 +4,6 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
-import SignalIndicator from "@/components/SignalIndicator";
 import {
   Users,
   Wallet,
@@ -21,6 +20,7 @@ import {
   MapPin,
   UserCog,
   Zap,
+  Bot,
 } from "lucide-react";
 
 function getGreeting() {
@@ -75,6 +75,7 @@ const menuGroups = [
       { href: "/operasional/kasbon", label: "Kasbon", icon: Wallet },
       { href: "/operasional/payroll", label: "Payroll", icon: Wallet },
       { href: "/operasional/komisi", label: "Komisi", icon: Wallet },
+      { href: "/operasional/asisten-hr", label: "Bot HR", icon: Bot, highlight: true },
     ],
   },
 ];
@@ -239,17 +240,29 @@ export default function DashboardHome() {
                   {group.label}
                 </p>
                 <div className="grid grid-cols-2 gap-2">
-                  {group.items.map((item) => {
+                  {group.items.map((item: any) => {
                     const ItemIcon = item.icon;
                     return (
                       <Link
                         key={item.href}
                         href={item.href}
                         className="flex items-center gap-2.5 p-3 rounded-lg text-sm transition-all hover:shadow-sm"
-                        style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}
+                        style={{
+                          background: item.highlight
+                            ? "linear-gradient(135deg, rgba(30,136,229,0.08), rgba(139,92,246,0.08))"
+                            : "var(--color-surface)",
+                          border: item.highlight ? "1px solid rgba(30,136,229,0.35)" : "1px solid var(--color-border)",
+                          position: "relative",
+                        }}
                       >
-                        <ItemIcon size={16} color="var(--color-accent)" strokeWidth={2} />
+                        <ItemIcon
+                          size={16}
+                          color="var(--color-accent)"
+                          strokeWidth={2}
+                          className={item.highlight ? "bot-icon-bounce" : ""}
+                        />
                         {item.label}
+                        {item.highlight && <span className="bot-badge-dot" />}
                       </Link>
                     );
                   })}
@@ -308,6 +321,31 @@ export default function DashboardHome() {
           </Link>
         </div>
       </div>
+
+      <style jsx global>{`
+        @keyframes botBounce {
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          25% { transform: translateY(-2px) rotate(-8deg); }
+          75% { transform: translateY(-2px) rotate(8deg); }
+        }
+        .bot-icon-bounce {
+          animation: botBounce 1.8s ease-in-out infinite;
+        }
+        @keyframes botPulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.5; transform: scale(1.3); }
+        }
+        .bot-badge-dot {
+          position: absolute;
+          top: 6px;
+          right: 6px;
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: var(--color-signal-good);
+          animation: botPulse 2s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   );
 }
