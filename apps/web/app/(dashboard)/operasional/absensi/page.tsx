@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Link2, Check, ExternalLink } from "lucide-react";
 
 interface AbsensiRecord {
   id: string;
@@ -27,6 +28,14 @@ export default function AbsensiAdminPage() {
   const [tanggal, setTanggal] = useState(new Date().toISOString().slice(0, 10));
   const [loading, setLoading] = useState(true);
   const [selectedFoto, setSelectedFoto] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  function handleCopyLink() {
+    const url = window.location.origin + "/absensi";
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(function () { setCopied(false); }, 2000);
+  }
 
   async function loadData() {
     setLoading(true);
@@ -44,8 +53,31 @@ export default function AbsensiAdminPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-3">
         <h1 className="text-2xl font-semibold">Rekap Absensi</h1>
+        <div className="flex gap-2">
+          <button
+            onClick={handleCopyLink}
+            className="px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"
+            style={{ border: "1px solid var(--color-border)", color: copied ? "var(--color-signal-good)" : "var(--color-ink)" }}
+          >
+            {copied ? <Check size={15} /> : <Link2 size={15} />}
+            {copied ? "Tersalin" : "Salin Link Absen"}
+          </button>
+          
+          <a
+            href="/absensi"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"
+            style={{ border: "1px solid var(--color-border)" }}
+          >
+            <ExternalLink size={15} />
+            Buka
+          </a>
+        </div>
+      </div>
+      <div className="flex items-center justify-end mb-6">
         <input
           type="date"
           value={tanggal}

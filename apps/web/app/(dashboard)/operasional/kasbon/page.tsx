@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Link2, Check, ExternalLink } from "lucide-react";
 
 interface KasbonRecord {
   id: string;
@@ -26,6 +27,14 @@ const statusStyle: Record<string, { bg: string; color: string }> = {
 export default function KasbonAdminPage() {
   const [records, setRecords] = useState<KasbonRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
+
+  function handleCopyLink() {
+    const url = window.location.origin + "/kasbon";
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(function () { setCopied(false); }, 2000);
+  }
 
   async function loadData() {
     setLoading(true);
@@ -51,7 +60,34 @@ export default function KasbonAdminPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold mb-6">Pengajuan Kasbon</h1>
+      <div className="flex items-center justify-between mb-3">
+        <h1 className="text-2xl font-semibold">Pengajuan Kasbon</h1>
+        <div className="flex gap-2">
+          <button
+            onClick={handleCopyLink}
+            className="px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"
+            style={{ border: "1px solid var(--color-border)", color: copied ? "var(--color-signal-good)" : "var(--color-ink)" }}
+          >
+            {copied ? <Check size={15} /> : <Link2 size={15} />}
+            {copied ? "Link Tersalin" : "Salin Link Pengajuan"}
+          </button>
+          
+          <a
+            href="/kasbon"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"
+            style={{ border: "1px solid var(--color-border)" }}
+          >
+            <ExternalLink size={15} />
+            Buka
+          </a>
+        </div>
+      </div>
+      
+      <p className="text-sm mb-6" style={{ color: "var(--color-ink-muted)" }}>
+        Bagikan link "Salin Link Pengajuan" ke karyawan lewat WhatsApp/grup
+      </p>
 
       <div className="rounded-lg overflow-hidden" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
         <table className="w-full">
