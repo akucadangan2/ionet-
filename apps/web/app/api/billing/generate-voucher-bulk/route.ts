@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
 
     const paketResult = await supabase
       .from("paket_voucher")
-      .select("id, nama, harga, profile_mikrotik, lokasi_id")
+      .select("id, nama, harga, profile_mikrotik")
       .eq("id", paketVoucherId)
       .single();
 
@@ -35,6 +35,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "Paket tidak ditemukan" }, { status: 404 });
     }
     const paket = paketResult.data;
+
+    const routerResult = await supabase
+      .from("router")
+      .select("lokasi_id")
+      .eq("id", routerId)
+      .single();
+
+    if (routerResult.error || !routerResult.data) {
+      return NextResponse.json({ message: "Router tidak ditemukan" }, { status: 404 });
+    }
+    const routerLokasiId = routerResult.data.lokasi_id;
 
     const generated = [];
     const errors = [];
@@ -48,7 +59,7 @@ export async function POST(req: NextRequest) {
           .from("transaksi_voucher")
           .insert({
             paket_voucher_id: paketVoucherId,
-            lokasi_id: paket.lokasi_id,
+            lokasi_id: routerLokasiId,
             nominal_dibayar: paket.harga,
             metode: "tunai",
             status: "lunas",
