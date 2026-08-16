@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
+import SignalIndicator from "@/components/SignalIndicator";
 import {
   Users,
   Wallet,
@@ -321,31 +322,6 @@ export default function DashboardHome() {
           </Link>
         </div>
       </div>
-
-      <style jsx global>{`
-        @keyframes botBounce {
-          0%, 100% { transform: translateY(0) rotate(0deg); }
-          25% { transform: translateY(-2px) rotate(-8deg); }
-          75% { transform: translateY(-2px) rotate(8deg); }
-        }
-        .bot-icon-bounce {
-          animation: botBounce 1.8s ease-in-out infinite;
-        }
-        @keyframes botPulse {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.5; transform: scale(1.3); }
-        }
-        .bot-badge-dot {
-          position: absolute;
-          top: 6px;
-          right: 6px;
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          background: var(--color-signal-good);
-          animation: botPulse 2s ease-in-out infinite;
-        }
-      `}</style>
     </div>
   );
 }
