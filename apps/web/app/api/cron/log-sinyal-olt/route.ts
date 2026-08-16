@@ -6,53 +6,69 @@ const RELAY_TOKEN = process.env.MIKROTIK_RELAY_TOKEN!;
 
 export async function GET() {
   try {
-    const res = await fetch(`${RELAY_URL}/snmp/olt-signal?host=192.168.44.102&community=public`, {
-      headers: { Authorization: `Bearer ${RELAY_TOKEN}` },
-    });
-    const json = await res.json();
-    if (!res.ok) {
-      throw new Error(json.message || `Relay error: ${res.status}`);
-    }
+    const routerResult = await supabase
+      .from("router")
+      .select("id, nama, olt_vendor")
+      .not("olt_vendor", "is", null);
 
-    const signals = json.signals || [];
+    let totalInserted = 0;
+    let totalSkipped = 0;
 
-    const { data: pelangganList } = await supabase
-      .from("pelanggan")
-      .select("id, pppoe_username")
-      .not("pppoe_username", "is", null);
+    for (const router of routerResult.data || []) {
+      const vendorResult = await supabase
+        .from("olt_vendor_config")
+        .select("oid_nama, oid_rx_power, power_divisor, status")
+        .eq("vendor", router.olt_vendor)
+        .single();
 
-    const usernameMap: Record<string, string> = {};
-    (pelangganList || []).forEach((p) => {
-      if (p.pppoe_username) {
-        usernameMap[p.pppoe_username.toLowerCase()] = p.id;
-      }
-    });
-
-    let inserted = 0;
-    let skipped = 0;
-
-    for (const signal of signals) {
-      if (!signal.name) {
-        skipped++;
-        continue;
-      }
-      const pelangganId = usernameMap[signal.name.toLowerCase()];
-      if (!pelangganId) {
-        skipped++;
+      if (!vendorResult.data || !vendorResult.data.oid_rx_power) {
         continue;
       }
 
-      const { error } = await supabase.from("log_sinyal_olt").insert({
-        pelanggan_id: pelangganId,
-        rx_power: signal.rxPowerDbm,
-        tx_power: null,
+      const cfg = vendorResult.data;
+      const params = new URLSearchParams({
+        host: "192.168.44.102",
+        community: "public",
+        oidRxPower: cfg.oid_rx_power,
+        powerDivisor: String(cfg.power_divisor),
+      });
+      if (cfg.oid_nama) params.set("oidNama", cfg.oid_nama);
+
+      const res = await fetch(`${RELAY_URL}/snmp/olt-signal?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${RELAY_TOKEN}` },
+      });
+      const json = await res.json();
+      if (!res.ok) continue;
+
+      const signals = json.signals || [];
+
+      const { data: pelangganList } = await supabase
+        .from("pelanggan")
+        .select("id, pppoe_username")
+        .not("pppoe_username", "is", null);
+
+      const usernameMap: Record<string, string> = {};
+      (pelangganList || []).forEach((p) => {
+        if (p.pppoe_username) usernameMap[p.pppoe_username.toLowerCase()] = p.id;
       });
 
-      if (!error) inserted++;
-      else skipped++;
+      for (const signal of signals) {
+        if (!signal.name) { totalSkipped++; continue; }
+        const pelangganId = usernameMap[signal.name.toLowerCase()];
+        if (!pelangganId) { totalSkipped++; continue; }
+
+        const { error } = await supabase.from("log_sinyal_olt").insert({
+          pelanggan_id: pelangganId,
+          rx_power: signal.rxPowerDbm,
+          tx_power: null,
+        });
+
+        if (!error) totalInserted++;
+        else totalSkipped++;
+      }
     }
 
-    return NextResponse.json({ inserted, skipped, total: signals.length });
+    return NextResponse.json({ inserted: totalInserted, skipped: totalSkipped });
   } catch (err) {
     return NextResponse.json({ message: (err as Error).message }, { status: 500 });
   }
