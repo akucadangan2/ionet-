@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { supabase } from "@/lib/supabase/client";
 import { Upload } from "lucide-react";
 
 const LocationPicker = dynamic(function () { return import("@/components/LocationPicker"); }, { ssr: false });
@@ -29,12 +28,23 @@ const emptyForm = {
   keterangan: "",
 };
 
+const PAGE_SIZE_OPTIONS = [10, 30, -1];
+
+function pageSizeLabel(size: number) {
+  return size === -1 ? "Semua" : String(size);
+}
+
 export default function OdcOdpPage() {
   const [list, setList] = useState<TitikJaringan[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [filterTipe, setFilterTipe] = useState("semua");
+  const [pageSize, setPageSize] = useState(10);
+  const [page, setPage] = useState(0);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState("");
 
   async function loadData() {
     setLoading(true);
@@ -92,10 +102,6 @@ export default function OdcOdpPage() {
     loadData();
   }
 
-  const inputStyle = { border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px" };
-
-  if (loading) return <p style={{ color: "var(--color-ink-muted)" }}>Memuat...</p>;
-
   function detectTipe(nama: string): string {
     const lower = nama.toLowerCase();
     if (lower.indexOf("odc") !== -1) return "odc";
@@ -113,7 +119,8 @@ export default function OdcOdpPage() {
       const xml = parser.parseFromString(text, "text/xml");
       const placemarks = xml.getElementsByTagName("Placemark");
 
-      let imported = 0;
+      const rows: { nama: string; tipe: string; latitude: number; longitude: number; keterangan: string }[] = [];
+
       for (let i = 0; i < placemarks.length; i++) {
         const pm = placemarks[i];
         const nameEl = pm.getElementsByTagName("name")[0];
@@ -129,37 +136,64 @@ export default function OdcOdpPage() {
         const lat = parseFloat(parts[1]);
         if (isNaN(lat) || isNaN(lng)) continue;
 
-        await fetch("/api/titik-jaringan", {
-          method: "POST",
-          body: JSON.stringify({
-            nama: nama,
-            tipe: detectTipe(nama),
-            latitude: lat,
-            longitude: lng,
-            keterangan: "Diimpor dari KML (label asli: " + nama + ")",
-          }),
+        rows.push({
+          nama: nama,
+          tipe: detectTipe(nama),
+          latitude: lat,
+          longitude: lng,
+          keterangan: "Diimpor dari KML (label asli: " + nama + ")",
         });
-        imported++;
       }
 
+      setImporting(true);
+      const batchSize = 10;
+      let imported = 0;
+
+      for (let i = 0; i < rows.length; i += batchSize) {
+        const batch = rows.slice(i, i + batchSize);
+        await Promise.all(
+          batch.map(function (row) {
+            return fetch("/api/titik-jaringan", {
+              method: "POST",
+              body: JSON.stringify(row),
+            });
+          })
+        );
+        imported += batch.length;
+        setImportProgress(imported + " / " + rows.length);
+      }
+
+      setImporting(false);
+      setImportProgress("");
       alert(imported + " titik berhasil diimpor");
       loadData();
     };
     reader.readAsText(file);
   }
 
+  const inputStyle = { border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px" };
+
+  const filteredList = filterTipe === "semua" ? list : list.filter(function (t) { return t.tipe === filterTipe; });
+  const totalOdc = list.filter(function (t) { return t.tipe === "odc"; }).length;
+  const totalOdp = list.filter(function (t) { return t.tipe === "odp"; }).length;
+
+  const totalPages = pageSize === -1 ? 1 : Math.ceil(filteredList.length / pageSize);
+  const pagedList = pageSize === -1 ? filteredList : filteredList.slice(page * pageSize, page * pageSize + pageSize);
+
+  if (loading) return <p style={{ color: "var(--color-ink-muted)" }}>Memuat...</p>;
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-3">
         <h1 className="text-2xl font-semibold">Titik ODC & ODP</h1>
         <div className="flex gap-2">
           <label
             className="px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 cursor-pointer"
-            style={{ border: "1px solid var(--color-accent)", color: "var(--color-accent)" }}
+            style={{ border: "1px solid var(--color-accent)", color: "var(--color-accent)", opacity: importing ? 0.6 : 1 }}
           >
             <Upload size={16} />
-            Import KML
-            <input type="file" accept=".kml" onChange={handleImportKml} style={{ display: "none" }} />
+            {importing ? "Mengimpor " + importProgress : "Import KML"}
+            <input type="file" accept=".kml" onChange={handleImportKml} disabled={importing} style={{ display: "none" }} />
           </label>
           <button
             onClick={openTambah}
@@ -169,6 +203,12 @@ export default function OdcOdpPage() {
             + Tambah Titik
           </button>
         </div>
+      </div>
+
+      <div className="flex gap-4 mb-6 text-sm">
+        <span style={{ color: "var(--color-ink-muted)" }}>Total: <b style={{ color: "var(--color-ink)" }}>{list.length}</b></span>
+        <span style={{ color: "var(--color-ink-muted)" }}>ODC: <b style={{ color: "#8B5CF6" }}>{totalOdc}</b></span>
+        <span style={{ color: "var(--color-ink-muted)" }}>ODP: <b style={{ color: "#F59E0B" }}>{totalOdp}</b></span>
       </div>
 
       {showForm && (
@@ -235,6 +275,46 @@ export default function OdcOdpPage() {
         </div>
       )}
 
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex gap-2">
+          {["semua", "odc", "odp"].map(function (t) {
+            return (
+              <button
+                key={t}
+                onClick={function () { setFilterTipe(t); setPage(0); }}
+                className="px-3 py-1.5 rounded text-sm"
+                style={{
+                  border: "1px solid var(--color-border)",
+                  background: filterTipe === t ? "var(--color-accent)" : "transparent",
+                  color: filterTipe === t ? "white" : "var(--color-ink)",
+                }}
+              >
+                {t === "semua" ? "Semua" : t.toUpperCase()}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex items-center gap-2 text-sm">
+          <span style={{ color: "var(--color-ink-muted)" }}>Tampilkan:</span>
+          {PAGE_SIZE_OPTIONS.map(function (size) {
+            return (
+              <button
+                key={size}
+                onClick={function () { setPageSize(size); setPage(0); }}
+                className="px-3 py-1 rounded text-sm"
+                style={{
+                  border: "1px solid var(--color-border)",
+                  background: pageSize === size ? "var(--color-accent)" : "transparent",
+                  color: pageSize === size ? "white" : "var(--color-ink)",
+                }}
+              >
+                {pageSizeLabel(size)}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="rounded-lg overflow-hidden" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
         <table className="w-full">
           <thead>
@@ -247,7 +327,7 @@ export default function OdcOdpPage() {
             </tr>
           </thead>
           <tbody>
-            {list.map(function (t) {
+            {pagedList.map(function (t) {
               return (
                 <tr key={t.id} style={{ borderTop: "1px solid var(--color-border)" }}>
                   <td className="p-3 text-sm">{t.nama}</td>
@@ -268,7 +348,7 @@ export default function OdcOdpPage() {
                 </tr>
               );
             })}
-            {list.length === 0 && (
+            {filteredList.length === 0 && (
               <tr>
                 <td colSpan={5} className="text-center py-8 text-sm" style={{ color: "var(--color-ink-muted)" }}>
                   Belum ada titik ODC/ODP
@@ -277,6 +357,30 @@ export default function OdcOdpPage() {
             )}
           </tbody>
         </table>
+
+        {pageSize !== -1 && totalPages > 1 && (
+          <div className="flex items-center justify-between p-3" style={{ borderTop: "1px solid var(--color-border)" }}>
+            <button
+              onClick={function () { setPage(Math.max(page - 1, 0)); }}
+              disabled={page === 0}
+              className="px-3 py-1.5 rounded text-sm"
+              style={{ border: "1px solid var(--color-border)", opacity: page === 0 ? 0.4 : 1 }}
+            >
+              Sebelumnya
+            </button>
+            <span className="text-sm" style={{ color: "var(--color-ink-muted)" }}>
+              Halaman {page + 1} dari {totalPages}
+            </span>
+            <button
+              onClick={function () { setPage(Math.min(page + 1, totalPages - 1)); }}
+              disabled={page >= totalPages - 1}
+              className="px-3 py-1.5 rounded text-sm"
+              style={{ border: "1px solid var(--color-border)", opacity: page >= totalPages - 1 ? 0.4 : 1 }}
+            >
+              Selanjutnya
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
