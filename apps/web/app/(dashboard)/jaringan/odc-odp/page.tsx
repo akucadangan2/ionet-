@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { Upload } from "lucide-react";
+import { Upload, Map, List } from "lucide-react";
+
+const NetworkMap = dynamic(function () { return import("@/components/NetworkMap"); }, { ssr: false });
 
 const LocationPicker = dynamic(function () { return import("@/components/LocationPicker"); }, { ssr: false });
 
@@ -45,6 +47,7 @@ export default function OdcOdpPage() {
   const [form, setForm] = useState(emptyForm);
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState("");
+  const [viewMode, setViewMode] = useState<"tabel" | "peta">("tabel");
 
   async function loadData() {
     setLoading(true);
@@ -187,6 +190,22 @@ export default function OdcOdpPage() {
       <div className="flex items-center justify-between mb-3">
         <h1 className="text-2xl font-semibold">Titik ODC & ODP</h1>
         <div className="flex gap-2">
+          <div className="flex rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-border)" }}>
+            <button
+              onClick={function () { setViewMode("tabel"); }}
+              className="px-3 py-2 text-sm flex items-center gap-1.5"
+              style={{ background: viewMode === "tabel" ? "var(--color-accent)" : "transparent", color: viewMode === "tabel" ? "white" : "var(--color-ink)" }}
+            >
+              <List size={15} /> Tabel
+            </button>
+            <button
+              onClick={function () { setViewMode("peta"); }}
+              className="px-3 py-2 text-sm flex items-center gap-1.5"
+              style={{ background: viewMode === "peta" ? "var(--color-accent)" : "transparent", color: viewMode === "peta" ? "white" : "var(--color-ink)" }}
+            >
+              <Map size={15} /> Peta
+            </button>
+          </div>
           <label
             className="px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 cursor-pointer"
             style={{ border: "1px solid var(--color-accent)", color: "var(--color-accent)", opacity: importing ? 0.6 : 1 }}
@@ -315,6 +334,16 @@ export default function OdcOdpPage() {
         </div>
       </div>
 
+      {viewMode === "peta" ? (
+        <div className="rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-border)" }}>
+          <NetworkMap
+            routers={[]}
+            pelanggan={[]}
+            titikJaringan={filteredList}
+            center={filteredList.length > 0 ? [filteredList[0].latitude, filteredList[0].longitude] : [1.42, 124.71]}
+          />
+        </div>
+      ) : (
       <div className="rounded-lg overflow-hidden" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
         <table className="w-full">
           <thead>
@@ -382,6 +411,7 @@ export default function OdcOdpPage() {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }
