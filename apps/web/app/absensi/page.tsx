@@ -66,8 +66,12 @@ export default function AbsensiPage() {
     canvas.height = videoRef.current.videoHeight;
     const ctx = canvas.getContext("2d");
     if (ctx) {
-      ctx.drawImage(videoRef.current, 0, 0);
-      setPhotoData(canvas.toDataURL("image/jpeg", 0.8));
+      const maxWidth = 480;
+      const scale = Math.min(1, maxWidth / videoRef.current.videoWidth);
+      canvas.width = videoRef.current.videoWidth * scale;
+      canvas.height = videoRef.current.videoHeight * scale;
+      ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+      setPhotoData(canvas.toDataURL("image/jpeg", 0.5));
     }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(function (t) { t.stop(); });
@@ -170,7 +174,30 @@ export default function AbsensiPage() {
 
           {cameraActive && (
             <div>
-              <video ref={videoRef} autoPlay playsInline className="w-full rounded-lg mb-3" style={{ transform: "scaleX(-1)" }} />
+              <div style={{ position: "relative", marginBottom: 12 }}>
+                <video ref={videoRef} autoPlay playsInline className="w-full rounded-lg" style={{ transform: "scaleX(-1)", display: "block" }} />
+                <svg
+                  viewBox="0 0 300 400"
+                  style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none" }}
+                >
+                  <defs>
+                    <mask id="face-guide-mask">
+                      <rect x="0" y="0" width="300" height="400" fill="white" />
+                      <ellipse cx="150" cy="190" rx="95" ry="130" fill="black" />
+                    </mask>
+                  </defs>
+                  <rect x="0" y="0" width="300" height="400" fill="rgba(0,0,0,0.45)" mask="url(#face-guide-mask)" />
+                  <ellipse cx="150" cy="190" rx="95" ry="130" fill="none" stroke="white" strokeWidth="2.5" strokeDasharray="8 6" />
+                </svg>
+                <p
+                  style={{
+                    position: "absolute", bottom: 12, left: 0, right: 0, textAlign: "center",
+                    color: "white", fontSize: 12, fontWeight: 500, textShadow: "0 1px 4px rgba(0,0,0,0.6)",
+                  }}
+                >
+                  Posisikan wajah di dalam bingkai
+                </p>
+              </div>
               <button onClick={takePhoto} className="w-full py-3 rounded-lg text-sm font-medium text-white" style={{ background: "var(--color-accent)" }}>
                 Ambil Foto
               </button>
