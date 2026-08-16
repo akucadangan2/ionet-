@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { supabase } from "@/lib/supabase/client";
+import { Upload } from "lucide-react";
 
 const LocationPicker = dynamic(function () { return import("@/components/LocationPicker"); }, { ssr: false });
 
@@ -95,17 +96,79 @@ export default function OdcOdpPage() {
 
   if (loading) return <p style={{ color: "var(--color-ink-muted)" }}>Memuat...</p>;
 
+  function detectTipe(nama: string): string {
+    const lower = nama.toLowerCase();
+    if (lower.indexOf("odc") !== -1) return "odc";
+    return "odp";
+  }
+
+  async function handleImportKml(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files ? e.target.files[0] : null;
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async function (event) {
+      const text = event.target ? String(event.target.result) : "";
+      const parser = new DOMParser();
+      const xml = parser.parseFromString(text, "text/xml");
+      const placemarks = xml.getElementsByTagName("Placemark");
+
+      let imported = 0;
+      for (let i = 0; i < placemarks.length; i++) {
+        const pm = placemarks[i];
+        const nameEl = pm.getElementsByTagName("name")[0];
+        const coordEl = pm.getElementsByTagName("coordinates")[0];
+        if (!nameEl || !coordEl) continue;
+
+        const nama = nameEl.textContent ? nameEl.textContent.trim() : "";
+        const coordText = coordEl.textContent ? coordEl.textContent.trim() : "";
+        const parts = coordText.split(",");
+        if (parts.length < 2 || !nama) continue;
+
+        const lng = parseFloat(parts[0]);
+        const lat = parseFloat(parts[1]);
+        if (isNaN(lat) || isNaN(lng)) continue;
+
+        await fetch("/api/titik-jaringan", {
+          method: "POST",
+          body: JSON.stringify({
+            nama: nama,
+            tipe: detectTipe(nama),
+            latitude: lat,
+            longitude: lng,
+            keterangan: "Diimpor dari KML (label asli: " + nama + ")",
+          }),
+        });
+        imported++;
+      }
+
+      alert(imported + " titik berhasil diimpor");
+      loadData();
+    };
+    reader.readAsText(file);
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold">Titik ODC & ODP</h1>
-        <button
-          onClick={openTambah}
-          className="px-4 py-2 rounded-lg text-sm font-medium text-white"
-          style={{ background: "var(--color-accent)" }}
-        >
-          + Tambah Titik
-        </button>
+        <div className="flex gap-2">
+          <label
+            className="px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 cursor-pointer"
+            style={{ border: "1px solid var(--color-accent)", color: "var(--color-accent)" }}
+          >
+            <Upload size={16} />
+            Import KML
+            <input type="file" accept=".kml" onChange={handleImportKml} style={{ display: "none" }} />
+          </label>
+          <button
+            onClick={openTambah}
+            className="px-4 py-2 rounded-lg text-sm font-medium text-white"
+            style={{ background: "var(--color-accent)" }}
+          >
+            + Tambah Titik
+          </button>
+        </div>
       </div>
 
       {showForm && (
