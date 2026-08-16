@@ -69,6 +69,7 @@ const menuGroups = [
     items: [
       { href: "/pelanggan", label: "Data Pelanggan", icon: Users },
       { href: "/tiket", label: "Tiket Gangguan", icon: AlertTriangle },
+      { href: "/operasional/karyawan", label: "Data Karyawan", icon: Users },
       { href: "/pengguna", label: "Pengguna", icon: UserCog },
     ],
   },
