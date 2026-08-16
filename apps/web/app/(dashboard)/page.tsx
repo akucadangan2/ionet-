@@ -55,6 +55,7 @@ const menuGroups = [
     label: "Jaringan",
     items: [
       { href: "/jaringan/peta", label: "Peta Jaringan", icon: Map },
+      { href: "/jaringan/odc-odp", label: "Titik ODC/ODP", icon: MapPin },
       { href: "/jaringan/bandwidth", label: "Bandwidth", icon: Gauge },
       { href: "/jaringan/uplink-monitoring", label: "Monitoring Uplink", icon: Radio },
       { href: "/jaringan/radius", label: "RADIUS", icon: Server },
