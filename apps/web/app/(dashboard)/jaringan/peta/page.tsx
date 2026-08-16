@@ -10,6 +10,7 @@ const NetworkMap = dynamic(() => import("@/components/NetworkMap"), { ssr: false
 export default function PetaPage() {
   const [routers, setRouters] = useState<any[]>([]);
   const [pelanggan, setPelanggan] = useState<any[]>([]);
+  const [titikJaringan, setTitikJaringan] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -29,6 +30,11 @@ export default function PetaPage() {
         .order("recorded_at", { foreignTable: "log_sinyal_olt", ascending: false })
         .limit(1, { foreignTable: "log_sinyal_olt" });
 
+      const { data: titikData } = await supabase
+        .from("titik_jaringan")
+        .select("*")
+        .not("latitude", "is", null);
+      setTitikJaringan(titikData ?? []);
       setRouters(routerData ?? []);
       setPelanggan(
         (pelangganData ?? []).map((p: any) => ({
@@ -88,7 +94,7 @@ export default function PetaPage() {
         className="rounded-lg overflow-hidden"
         style={{ border: "1px solid var(--color-border)" }}
       >
-        <NetworkMap routers={routers} pelanggan={pelanggan} center={center} />
+        <NetworkMap routers={routers} pelanggan={pelanggan} titikJaringan={titikJaringan} center={center} />
       </div>
     </div>
   );

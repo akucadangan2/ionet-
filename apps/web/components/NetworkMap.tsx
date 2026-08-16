@@ -57,13 +57,39 @@ interface PelangganPin {
   kmlDeskripsi?: string;
 }
 
+interface TitikJaringanPin {
+  id: string;
+  nama: string;
+  tipe: string;
+  kapasitas_port: number | null;
+  port_terpakai: number | null;
+  latitude: number;
+  longitude: number;
+  keterangan: string | null;
+}
+
 interface NetworkMapProps {
   routers: RouterPin[];
   pelanggan: PelangganPin[];
+  titikJaringan?: TitikJaringanPin[];
   center: [number, number];
 }
 
-export default function NetworkMap({ routers, pelanggan, center }: NetworkMapProps) {
+const iconOdc = new L.DivIcon({
+  className: "",
+  html: '<div style="width:14px;height:14px;background:#8B5CF6;border:2px solid white;box-shadow:0 0 0 1px rgba(0,0,0,0.15);transform:rotate(45deg)"></div>',
+  iconSize: [14, 14],
+  iconAnchor: [7, 7],
+});
+
+const iconOdp = new L.DivIcon({
+  className: "",
+  html: '<div style="width:12px;height:12px;background:#F59E0B;border:2px solid white;box-shadow:0 0 0 1px rgba(0,0,0,0.15);transform:rotate(45deg)"></div>',
+  iconSize: [12, 12],
+  iconAnchor: [6, 6],
+});
+
+export default function NetworkMap({ routers, pelanggan, titikJaringan, center }: NetworkMapProps) {
   return (
     <MapContainer center={center} zoom={15} style={{ height: "600px", width: "100%" }}>
       <LayersControl position="topright">
@@ -121,6 +147,31 @@ export default function NetworkMap({ routers, pelanggan, center }: NetworkMapPro
                   <>
                     <hr style={{ margin: "6px 0" }} />
                     <div style={{ fontSize: 11, whiteSpace: "pre-wrap", color: "#555" }}>{cleanDeskripsi}</div>
+                  </>
+                )}
+              </div>
+            </Popup>
+          </Marker>
+        );
+      })}
+      {(titikJaringan || []).map(function (t) {
+        return (
+          <Marker key={t.id} position={[t.latitude, t.longitude]} icon={t.tipe === "odc" ? iconOdc : iconOdp}>
+            <Popup>
+              <div style={{ minWidth: 160 }}>
+                <b>{t.nama}</b>
+                <br />
+                Tipe: {t.tipe.toUpperCase()}
+                {t.kapasitas_port && (
+                  <>
+                    <br />
+                    Port: {t.port_terpakai || 0}/{t.kapasitas_port}
+                  </>
+                )}
+                {t.keterangan && (
+                  <>
+                    <hr style={{ margin: "6px 0" }} />
+                    <div style={{ fontSize: 11 }}>{t.keterangan}</div>
                   </>
                 )}
               </div>
