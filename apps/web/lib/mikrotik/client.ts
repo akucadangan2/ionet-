@@ -24,9 +24,10 @@ export async function addHotspotUser(
   username: string,
   password: string,
   profile: string,
-  limitUptime?: string
+  limitUptime?: string,
+  limitBytesTotal?: number
 ) {
-  await relayCall("/mikrotik/generate-voucher", "POST", { routerId, username, password, profile, limitUptime });
+  await relayCall("/mikrotik/generate-voucher", "POST", { routerId, username, password, profile, limitUptime, limitBytesTotal });
 }
 
 export async function setPPPoEStatus(routerId: string, pppoeUser: string, enabled: boolean) {

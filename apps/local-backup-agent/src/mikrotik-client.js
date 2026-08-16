@@ -14,11 +14,12 @@ async function getConnection(config) {
   return conn;
 }
 
-async function addHotspotUser(config, username, password, profile, limitUptime) {
+async function addHotspotUser(config, username, password, profile, limitUptime, limitBytesTotal) {
   const conn = await getConnection(config);
   try {
     const params = [`=name=${username}`, `=password=${password}`, `=profile=${profile}`];
     if (limitUptime) params.push(`=limit-uptime=${limitUptime}`);
+    if (limitBytesTotal) params.push(`=limit-bytes-total=${limitBytesTotal}`);
     await conn.write("/ip/hotspot/user/add", params);
   } finally {
     conn.close();

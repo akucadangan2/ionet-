@@ -92,10 +92,10 @@ app.post("/transaksi-voucher", (req, res) => {
 
 app.post("/mikrotik/generate-voucher", checkAuth, async (req, res) => {
   try {
-    const { routerId, username, password, profile, limitUptime } = req.body;
+    const { routerId, username, password, profile, limitUptime, limitBytesTotal } = req.body;
     if (!routerId) throw new Error("routerId diperlukan");
     const config = await getRouterConfig(routerId);
-    await mikrotik.addHotspotUser(config, username, password, profile, limitUptime);
+    await mikrotik.addHotspotUser(config, username, password, profile, limitUptime, limitBytesTotal);
     res.json({ message: "voucher berhasil dibuat" });
   } catch (err) {
     res.status(500).json({ message: err.message });
