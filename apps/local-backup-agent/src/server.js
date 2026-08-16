@@ -228,5 +228,17 @@ app.get("/snmp/olt-signal", checkAuth, async (req, res) => {
   }
 });
 
+app.get("/mikrotik/hotspot-active", checkAuth, async (req, res) => {
+  try {
+    const routerId = req.query.routerId;
+    if (!routerId) throw new Error("routerId diperlukan");
+    const config = await getRouterConfig(routerId);
+    const data = await mikrotik.getActiveHotspotUsers(config);
+    res.json({ data });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 const PORT = process.env.LOCAL_AGENT_PORT || 4000;
 app.listen(PORT, () => console.log(`local-backup-agent running on port ${PORT}`));

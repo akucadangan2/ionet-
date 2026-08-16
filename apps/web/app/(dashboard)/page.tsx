@@ -45,6 +45,7 @@ const menuGroups = [
     label: "Billing",
     items: [
       { href: "/billing/voucher", label: "Voucher", icon: Ticket },
+      { href: "/billing/hotspot-aktif", label: "Hotspot Aktif", icon: Wifi },
       { href: "/billing/langganan-bulanan", label: "Langganan Bulanan", icon: CreditCard },
       { href: "/billing/paket", label: "Paket Harga", icon: Package },
       { href: "/billing/laporan-keuangan", label: "Laporan Keuangan", icon: FileSpreadsheet },

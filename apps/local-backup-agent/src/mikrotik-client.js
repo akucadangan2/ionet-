@@ -124,6 +124,15 @@ async function pingGatewayViaInterface(config, interfaceName, gatewayIp) {
   }
 }
 
+async function getActiveHotspotUsers(config) {
+  const conn = await getConnection(config);
+  try {
+    return await conn.write("/ip/hotspot/active/print");
+  } finally {
+    conn.close();
+  }
+}
+
 module.exports = {
   addHotspotUser,
   setPPPoEStatus,
@@ -133,4 +142,5 @@ module.exports = {
   getQueueStats,
   getAllPPPoESecrets,
   pingGatewayViaInterface,
+  getActiveHotspotUsers,
 };
