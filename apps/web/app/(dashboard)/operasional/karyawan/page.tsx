@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Link2, Check, ExternalLink } from "lucide-react";
 
 interface Karyawan {
   id: string;
@@ -19,6 +20,7 @@ export default function KaryawanPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [copied, setCopied] = useState(false);
 
   async function loadData() {
     setLoading(true);
@@ -66,10 +68,22 @@ export default function KaryawanPage() {
     loadData();
   }
 
+  // Menambahkan fungsi handleHapus yang sebelumnya belum ada
   async function handleHapus(id: string) {
-    if (!confirm("Yakin hapus karyawan ini?")) return;
-    await fetch("/api/karyawan", { method: "DELETE", body: JSON.stringify({ id }) });
+    if (!confirm("Yakin ingin menghapus data karyawan ini?")) return;
+    
+    await fetch("/api/karyawan?id=" + id, {
+      method: "DELETE",
+    });
+    
     loadData();
+  }
+
+  function handleCopyLink() {
+    const url = window.location.origin + "/absensi";
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(function () { setCopied(false); }, 2000);
   }
 
   const inputStyle = { border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px" };
@@ -78,12 +92,38 @@ export default function KaryawanPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-3">
         <h1 className="text-2xl font-semibold">Data Karyawan</h1>
-        <button onClick={openTambah} className="px-4 py-2 rounded-lg text-sm font-medium text-white" style={{ background: "var(--color-accent)" }}>
-          + Tambah Karyawan
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleCopyLink}
+            className="px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"
+            style={{ border: "1px solid var(--color-border)", color: copied ? "var(--color-signal-good)" : "var(--color-ink)" }}
+          >
+            {copied ? <Check size={15} /> : <Link2 size={15} />}
+            {copied ? "Link Tersalin" : "Salin Link Absen"}
+          </button>
+          
+          {/* Memperbaiki tag <a> yang hilang pembukanya */}
+          <a
+            href="/absensi"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"
+            style={{ border: "1px solid var(--color-border)" }}
+          >
+            <ExternalLink size={15} />
+            Buka
+          </a>
+          <button onClick={openTambah} className="px-4 py-2 rounded-lg text-sm font-medium text-white" style={{ background: "var(--color-accent)" }}>
+            + Tambah Karyawan
+          </button>
+        </div>
       </div>
+
+      <p className="text-sm mb-6" style={{ color: "var(--color-ink-muted)" }}>
+        Bagikan link "Salin Link Absen" ke karyawan lewat WhatsApp/grup, mereka bisa absen langsung tanpa login
+      </p>
 
       {showForm && (
         <div className="p-5 rounded-lg mb-6" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", maxWidth: 500 }}>
