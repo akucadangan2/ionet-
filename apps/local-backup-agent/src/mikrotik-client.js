@@ -133,6 +133,19 @@ async function getActiveHotspotUsers(config) {
   }
 }
 
+async function monitorInterfaceTraffic(config, interfaceName) {
+  const conn = await getConnection(config);
+  try {
+    const result = await conn.write("/interface/monitor-traffic", [
+      "=interface=" + interfaceName,
+      "=once=",
+    ]);
+    return result[0] || {};
+  } finally {
+    conn.close();
+  }
+}
+
 module.exports = {
   addHotspotUser,
   setPPPoEStatus,
@@ -143,4 +156,5 @@ module.exports = {
   getAllPPPoESecrets,
   pingGatewayViaInterface,
   getActiveHotspotUsers,
+  monitorInterfaceTraffic,
 };

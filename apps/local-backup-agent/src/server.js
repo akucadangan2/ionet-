@@ -240,5 +240,18 @@ app.get("/mikrotik/hotspot-active", checkAuth, async (req, res) => {
   }
 });
 
+app.get("/mikrotik/interface-traffic", checkAuth, async (req, res) => {
+  try {
+    const routerId = req.query.routerId;
+    const interfaceName = req.query.interfaceName;
+    if (!routerId || !interfaceName) throw new Error("routerId dan interfaceName diperlukan");
+    const config = await getRouterConfig(routerId);
+    const data = await mikrotik.monitorInterfaceTraffic(config, interfaceName);
+    res.json({ data });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 const PORT = process.env.LOCAL_AGENT_PORT || 4000;
 app.listen(PORT, () => console.log(`local-backup-agent running on port ${PORT}`));
