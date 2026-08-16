@@ -74,6 +74,7 @@ const menuGroups = [
       { href: "/operasional/absensi", label: "Rekap Absensi", icon: AlertTriangle },
       { href: "/operasional/kasbon", label: "Kasbon", icon: Wallet },
       { href: "/operasional/payroll", label: "Payroll", icon: Wallet },
+      { href: "/operasional/komisi", label: "Komisi", icon: Wallet },
     ],
   },
 ];
