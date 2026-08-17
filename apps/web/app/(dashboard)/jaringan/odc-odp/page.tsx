@@ -48,12 +48,18 @@ export default function OdcOdpPage() {
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState("");
   const [viewMode, setViewMode] = useState<"tabel" | "peta">("tabel");
+  const [jalurKabel, setJalurKabel] = useState<any[]>([]);
 
   async function loadData() {
     setLoading(true);
     const res = await fetch("/api/titik-jaringan");
     const json = await res.json();
     setList(json.data || []);
+
+    const jalurRes = await fetch("/api/jalur-kabel");
+    const jalurJson = await jalurRes.json();
+    setJalurKabel(jalurJson.data || []);
+
     setLoading(false);
   }
 
@@ -394,6 +400,7 @@ export default function OdcOdpPage() {
             routers={[]}
             pelanggan={[]}
             titikJaringan={filteredList}
+            jalurKabel={jalurKabel}
             center={filteredList.length > 0 ? [filteredList[0].latitude, filteredList[0].longitude] : [1.42, 124.71]}
           />
         </div>
