@@ -1,6 +1,6 @@
 // components/NetworkMap.tsx
 "use client";
-import { MapContainer, TileLayer, Marker, Popup, LayersControl } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, LayersControl, Polyline } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 
@@ -68,10 +68,18 @@ interface TitikJaringanPin {
   keterangan: string | null;
 }
 
+interface JalurKabelLine {
+  id: string;
+  nama: string;
+  warna: string;
+  koordinat: [number, number][];
+}
+
 interface NetworkMapProps {
   routers: RouterPin[];
   pelanggan: PelangganPin[];
   titikJaringan?: TitikJaringanPin[];
+  jalurKabel?: JalurKabelLine[];
   center: [number, number];
 }
 
@@ -89,7 +97,7 @@ const iconOdp = new L.DivIcon({
   iconAnchor: [6, 6],
 });
 
-export default function NetworkMap({ routers, pelanggan, titikJaringan, center }: NetworkMapProps) {
+export default function NetworkMap({ routers, pelanggan, titikJaringan, jalurKabel, center }: NetworkMapProps) {
   return (
     <MapContainer center={center} zoom={15} style={{ height: "600px", width: "100%" }}>
       <LayersControl position="topright">
@@ -106,6 +114,14 @@ export default function NetworkMap({ routers, pelanggan, titikJaringan, center }
           />
         </LayersControl.BaseLayer>
       </LayersControl>
+
+      {(jalurKabel || []).map(function (j) {
+        return (
+          <Polyline key={j.id} positions={j.koordinat} pathOptions={{ color: j.warna, weight: 3 }}>
+            <Popup>{j.nama}</Popup>
+          </Polyline>
+        );
+      })}
 
       {routers.map(function (r) {
         return (
@@ -154,6 +170,7 @@ export default function NetworkMap({ routers, pelanggan, titikJaringan, center }
           </Marker>
         );
       })}
+      
       {(titikJaringan || []).map(function (t) {
         return (
           <Marker key={t.id} position={[t.latitude, t.longitude]} icon={t.tipe === "odc" ? iconOdc : iconOdp}>

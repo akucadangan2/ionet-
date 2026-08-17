@@ -111,6 +111,14 @@ export default function OdcOdpPage() {
     return "odp";
   }
 
+  function kmlColorToHex(kmlColor: string): string {
+    if (!kmlColor || kmlColor.length < 8) return "#3388ff";
+    const b = kmlColor.substring(2, 4);
+    const g = kmlColor.substring(4, 6);
+    const r = kmlColor.substring(6, 8);
+    return "#" + r + g + b;
+  }
+
   async function handleImportKml(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files ? e.target.files[0] : null;
     if (!file) return;
@@ -120,55 +128,101 @@ export default function OdcOdpPage() {
       const text = event.target ? String(event.target.result) : "";
       const parser = new DOMParser();
       const xml = parser.parseFromString(text, "text/xml");
-      const placemarks = xml.getElementsByTagName("Placemark");
 
-      const rows: { nama: string; tipe: string; latitude: number; longitude: number; keterangan: string }[] = [];
+      const styleColorMap: Record<string, string> = {};
+      const styleEls = xml.getElementsByTagName("Style");
+      for (let i = 0; i < styleEls.length; i++) {
+        const styleId = styleEls[i].getAttribute("id");
+        const lineStyle = styleEls[i].getElementsByTagName("LineStyle")[0];
+        if (styleId && lineStyle) {
+          const colorEl = lineStyle.getElementsByTagName("color")[0];
+          if (colorEl && colorEl.textContent) {
+            styleColorMap[styleId] = kmlColorToHex(colorEl.textContent.trim());
+          }
+        }
+      }
+
+      const placemarks = xml.getElementsByTagName("Placemark");
+      const pointRows: { nama: string; tipe: string; latitude: number; longitude: number; keterangan: string }[] = [];
+      const lineRows: { nama: string; warna: string; koordinat: number[][]; keterangan: string }[] = [];
 
       for (let i = 0; i < placemarks.length; i++) {
         const pm = placemarks[i];
         const nameEl = pm.getElementsByTagName("name")[0];
-        const coordEl = pm.getElementsByTagName("coordinates")[0];
-        if (!nameEl || !coordEl) continue;
+        const nama = nameEl && nameEl.textContent ? nameEl.textContent.trim() : "";
+        if (!nama) continue;
 
-        const nama = nameEl.textContent ? nameEl.textContent.trim() : "";
-        const coordText = coordEl.textContent ? coordEl.textContent.trim() : "";
-        const parts = coordText.split(",");
-        if (parts.length < 2 || !nama) continue;
+        const pointEl = pm.getElementsByTagName("Point")[0];
+        const lineEl = pm.getElementsByTagName("LineString")[0];
 
-        const lng = parseFloat(parts[0]);
-        const lat = parseFloat(parts[1]);
-        if (isNaN(lat) || isNaN(lng)) continue;
+        if (pointEl) {
+          const coordEl = pointEl.getElementsByTagName("coordinates")[0];
+          if (!coordEl || !coordEl.textContent) continue;
+          const parts = coordEl.textContent.trim().split(",");
+          if (parts.length < 2) continue;
+          const lng = parseFloat(parts[0]);
+          const lat = parseFloat(parts[1]);
+          if (isNaN(lat) || isNaN(lng)) continue;
 
-        rows.push({
-          nama: nama,
-          tipe: detectTipe(nama),
-          latitude: lat,
-          longitude: lng,
-          keterangan: "Diimpor dari KML (label asli: " + nama + ")",
-        });
+          pointRows.push({
+            nama: nama,
+            tipe: detectTipe(nama),
+            latitude: lat,
+            longitude: lng,
+            keterangan: "Diimpor dari KML (label asli: " + nama + ")",
+          });
+        } else if (lineEl) {
+          const coordEl = lineEl.getElementsByTagName("coordinates")[0];
+          if (!coordEl || !coordEl.textContent) continue;
+
+          const styleUrlEl = pm.getElementsByTagName("styleUrl")[0];
+          const styleId = styleUrlEl && styleUrlEl.textContent ? styleUrlEl.textContent.replace("#", "").trim() : "";
+          const warna = styleColorMap[styleId] || "#3388ff";
+
+          const coordPairs = coordEl.textContent.trim().split(/\s+/);
+          const path: number[][] = [];
+          coordPairs.forEach(function (pair) {
+            const p = pair.split(",");
+            if (p.length >= 2) {
+              const lng = parseFloat(p[0]);
+              const lat = parseFloat(p[1]);
+              if (!isNaN(lat) && !isNaN(lng)) path.push([lat, lng]);
+            }
+          });
+
+          if (path.length >= 2) {
+            lineRows.push({
+              nama: nama,
+              warna: warna,
+              koordinat: path,
+              keterangan: "Diimpor dari KML (label asli: " + nama + ")",
+            });
+          }
+        }
       }
 
       setImporting(true);
       const batchSize = 10;
       let imported = 0;
+      const totalRows = pointRows.length + lineRows.length;
 
-      for (let i = 0; i < rows.length; i += batchSize) {
-        const batch = rows.slice(i, i + batchSize);
-        await Promise.all(
-          batch.map(function (row) {
-            return fetch("/api/titik-jaringan", {
-              method: "POST",
-              body: JSON.stringify(row),
-            });
-          })
-        );
+      for (let i = 0; i < pointRows.length; i += batchSize) {
+        const batch = pointRows.slice(i, i + batchSize);
+        await Promise.all(batch.map(function (row) { return fetch("/api/titik-jaringan", { method: "POST", body: JSON.stringify(row) }); }));
         imported += batch.length;
-        setImportProgress(imported + " / " + rows.length);
+        setImportProgress(imported + " / " + totalRows);
+      }
+
+      for (let i = 0; i < lineRows.length; i += batchSize) {
+        const batch = lineRows.slice(i, i + batchSize);
+        await Promise.all(batch.map(function (row) { return fetch("/api/jalur-kabel", { method: "POST", body: JSON.stringify(row) }); }));
+        imported += batch.length;
+        setImportProgress(imported + " / " + totalRows);
       }
 
       setImporting(false);
       setImportProgress("");
-      alert(imported + " titik berhasil diimpor");
+      alert(pointRows.length + " titik dan " + lineRows.length + " jalur kabel berhasil diimpor");
       loadData();
     };
     reader.readAsText(file);

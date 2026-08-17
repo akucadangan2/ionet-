@@ -11,6 +11,7 @@ export default function PetaPage() {
   const [routers, setRouters] = useState<any[]>([]);
   const [pelanggan, setPelanggan] = useState<any[]>([]);
   const [titikJaringan, setTitikJaringan] = useState<any[]>([]);
+  const [jalurKabel, setJalurKabel] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -35,6 +36,9 @@ export default function PetaPage() {
         .select("*")
         .not("latitude", "is", null);
       setTitikJaringan(titikData ?? []);
+
+      const { data: jalurData } = await supabase.from("jalur_kabel").select("*");
+      setJalurKabel(jalurData ?? []);
       setRouters(routerData ?? []);
       setPelanggan(
         (pelangganData ?? []).map((p: any) => ({
@@ -94,7 +98,7 @@ export default function PetaPage() {
         className="rounded-lg overflow-hidden"
         style={{ border: "1px solid var(--color-border)" }}
       >
-        <NetworkMap routers={routers} pelanggan={pelanggan} titikJaringan={titikJaringan} center={center} />
+        <NetworkMap routers={routers} pelanggan={pelanggan} titikJaringan={titikJaringan} jalurKabel={jalurKabel} center={center} />
       </div>
     </div>
   );
