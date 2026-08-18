@@ -36,15 +36,29 @@ export async function GET() {
       }
 
       try {
-        const res = await fetch(
+        const trafficRes = await fetch(
           `${RELAY_URL}/mikrotik/interface-traffic?routerId=${routerId}&interfaceName=${uplink.interface_mikrotik}`,
           { headers: { Authorization: `Bearer ${RELAY_TOKEN}` } }
         );
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.message);
+        const trafficJson = await trafficRes.json();
+        if (!trafficRes.ok) throw new Error(trafficJson.message);
 
-        const rxBps = Number(json.data["rx-bits-per-second"]) || 0;
-        const txBps = Number(json.data["tx-bits-per-second"]) || 0;
+        const rxBps = Number(trafficJson.data["rx-bits-per-second"]) || 0;
+        const txBps = Number(trafficJson.data["tx-bits-per-second"]) || 0;
+
+        let pingStats = { packetLossPercent: null, avgLatencyMs: null };
+        try {
+          const pingRes = await fetch(
+            `${RELAY_URL}/mikrotik/ping-stats?routerId=${routerId}&interfaceName=${uplink.interface_mikrotik}&targetIp=8.8.8.8`,
+            { headers: { Authorization: `Bearer ${RELAY_TOKEN}` } }
+          );
+          const pingJson = await pingRes.json();
+          if (pingRes.ok) {
+            pingStats = { packetLossPercent: pingJson.packetLossPercent, avgLatencyMs: pingJson.avgLatencyMs };
+          }
+        } catch {
+          // ping gagal, biarin null, jangan gagalin seluruh response
+        }
 
         results.push({
           nama: uplink.nama,
@@ -52,6 +66,8 @@ export async function GET() {
           status: uplink.status,
           downloadMbps: Math.round((rxBps / 1000000) * 10) / 10,
           uploadMbps: Math.round((txBps / 1000000) * 10) / 10,
+          packetLossPercent: pingStats.packetLossPercent,
+          latencyMs: pingStats.avgLatencyMs,
           error: null,
         });
       } catch (err) {
@@ -61,6 +77,8 @@ export async function GET() {
           status: uplink.status,
           downloadMbps: null,
           uploadMbps: null,
+          packetLossPercent: null,
+          latencyMs: null,
           error: (err as Error).message,
         });
       }

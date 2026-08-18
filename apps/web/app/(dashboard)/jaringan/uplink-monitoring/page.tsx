@@ -14,10 +14,11 @@ interface UplinkData {
   status: string;
   downloadMbps: number | null;
   uploadMbps: number | null;
+  packetLossPercent: number | null;
+  latencyMs: number | null;
   error: string | null;
   history: HistoryPoint[];
 }
-
 function statusColor(status: string, error: string | null) {
   if (error) return "var(--color-signal-bad)";
   if (status === "online") return "var(--color-signal-good)";
@@ -122,6 +123,21 @@ export default function UplinkMonitoringPage() {
                   <div>
                     <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>Upload</p>
                     <p className="text-lg font-semibold mono">{u.uploadMbps !== null ? u.uploadMbps + " Mbps" : "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>Latency</p>
+                    <p className="text-sm font-semibold mono">
+                      {u.latencyMs !== null ? u.latencyMs + " ms" : "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs" style={{ color: "var(--color-ink-muted)" }}>Packet Loss</p>
+                    <p
+                      className="text-sm font-semibold mono"
+                      style={{ color: u.packetLossPercent !== null && u.packetLossPercent > 0 ? "var(--color-signal-bad)" : "var(--color-ink)" }}
+                    >
+                      {u.packetLossPercent !== null ? u.packetLossPercent + "%" : "-"}
+                    </p>
                   </div>
                 </div>
 
