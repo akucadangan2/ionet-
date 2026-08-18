@@ -125,3 +125,12 @@ td {
   background: var(--color-signal-good);
   animation: botPulse 2s ease-in-out infinite;
 }
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  #dashboard-topnav {
+    display: none !important;
+  }
+}

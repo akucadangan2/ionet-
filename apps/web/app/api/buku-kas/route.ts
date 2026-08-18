@@ -7,6 +7,8 @@ interface KasEntry {
   kategori: string;
   tipe: "masuk" | "keluar";
   nominal: number;
+  sourceType?: "voucher" | "bulanan";
+  sourceId?: string;
 }
 
 export async function GET(req: NextRequest) {
@@ -16,7 +18,7 @@ export async function GET(req: NextRequest) {
 
     let voucherQuery = supabase
       .from("transaksi_voucher")
-      .select("dibayar_at, nominal_dibayar, metode, paket_voucher(nama)")
+      .select("id, dibayar_at, nominal_dibayar, metode, paket_voucher(nama)")
       .eq("status", "lunas");
     if (dari) voucherQuery = voucherQuery.gte("dibayar_at", dari);
     if (sampai) voucherQuery = voucherQuery.lte("dibayar_at", sampai + "T23:59:59");
@@ -24,7 +26,7 @@ export async function GET(req: NextRequest) {
 
     let bulananQuery = supabase
       .from("pembayaran_bulanan")
-      .select("divalidasi_at, nominal, pelanggan(nama)")
+      .select("id, divalidasi_at, nominal, pelanggan(nama)")
       .eq("status", "lunas");
     if (dari) bulananQuery = bulananQuery.gte("divalidasi_at", dari);
     if (sampai) bulananQuery = bulananQuery.lte("divalidasi_at", sampai + "T23:59:59");
@@ -44,6 +46,8 @@ export async function GET(req: NextRequest) {
         kategori: "Voucher",
         tipe: "masuk",
         nominal: Number(v.nominal_dibayar),
+        sourceType: "voucher",
+        sourceId: v.id,
       });
     });
 
@@ -54,6 +58,8 @@ export async function GET(req: NextRequest) {
         kategori: "Langganan Bulanan",
         tipe: "masuk",
         nominal: Number(b.nominal),
+        sourceType: "bulanan",
+        sourceId: b.id,
       });
     });
 

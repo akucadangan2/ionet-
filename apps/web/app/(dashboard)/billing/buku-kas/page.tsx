@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { FileText } from "lucide-react";
 
 interface KasEntry {
   tanggal: string;
@@ -9,6 +11,8 @@ interface KasEntry {
   tipe: "masuk" | "keluar";
   nominal: number;
   saldo: number;
+  sourceType?: "voucher" | "bulanan";
+  sourceId?: string;
 }
 
 function formatRupiah(n: number) {
@@ -162,6 +166,7 @@ export default function BukuKasPage() {
                 <th className="text-right p-3 text-sm">Masuk</th>
                 <th className="text-right p-3 text-sm">Keluar</th>
                 <th className="text-right p-3 text-sm">Saldo</th>
+                <th className="text-left p-3 text-sm">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -178,12 +183,24 @@ export default function BukuKasPage() {
                       {e.tipe === "keluar" ? formatRupiah(e.nominal) : "-"}
                     </td>
                     <td className="p-3 text-sm text-right mono font-medium">{formatRupiah(e.saldo)}</td>
+                    <td className="p-3">
+                      {e.sourceType && e.sourceId && (
+                        <Link
+                          href={"/invoice?tipe=" + e.sourceType + "&id=" + e.sourceId}
+                          target="_blank"
+                          className="text-xs flex items-center gap-1"
+                          style={{ color: "var(--color-accent)" }}
+                        >
+                          <FileText size={13} /> Invoice
+                        </Link>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
               {entries.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="text-center py-8 text-sm" style={{ color: "var(--color-ink-muted)" }}>
+                  <td colSpan={7} className="text-center py-8 text-sm" style={{ color: "var(--color-ink-muted)" }}>
                     Belum ada transaksi
                   </td>
                 </tr>
