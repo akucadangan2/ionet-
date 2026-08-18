@@ -267,5 +267,19 @@ app.get("/mikrotik/interface-traffic", checkAuth, async (req, res) => {
   }
 });
 
+app.get("/mikrotik/ping-stats", checkAuth, async (req, res) => {
+  try {
+    const routerId = req.query.routerId;
+    const interfaceName = req.query.interfaceName;
+    const targetIp = req.query.targetIp || "8.8.8.8";
+    if (!routerId || !interfaceName) throw new Error("routerId dan interfaceName diperlukan");
+    const config = await getRouterConfig(routerId);
+    const result = await mikrotik.pingWithStats(config, interfaceName, targetIp, 5);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 const PORT = process.env.LOCAL_AGENT_PORT || 4000;
 app.listen(PORT, () => console.log(`local-backup-agent running on port ${PORT}`));

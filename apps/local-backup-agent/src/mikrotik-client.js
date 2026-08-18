@@ -124,6 +124,43 @@ async function pingGatewayViaInterface(config, interfaceName, gatewayIp) {
   }
 }
 
+async function pingWithStats(config, interfaceName, targetIp, count) {
+  const conn = await getConnection(config);
+  try {
+    const results = await conn.write("/ping", [
+      "=address=" + targetIp,
+      "=interface=" + interfaceName,
+      "=count=" + (count || 5),
+    ]);
+
+    let received = 0;
+    let totalTime = 0;
+    let times = [];
+
+    results.forEach(function (r) {
+      if (r.time && !r.timeout) {
+        received++;
+        const ms = parseFloat(String(r.time).replace("ms", "").replace("us", "")) || 0;
+        times.push(ms);
+        totalTime += ms;
+      }
+    });
+
+    const sent = count || 5;
+    const packetLoss = Math.round(((sent - received) / sent) * 100);
+    const avgLatency = received > 0 ? Math.round(totalTime / received) : null;
+
+    return {
+      sent: sent,
+      received: received,
+      packetLossPercent: packetLoss,
+      avgLatencyMs: avgLatency,
+    };
+  } finally {
+    conn.close();
+  }
+}
+
 async function getActiveHotspotUsers(config) {
   const conn = await getConnection(config);
   try {
@@ -157,4 +194,5 @@ module.exports = {
   pingGatewayViaInterface,
   getActiveHotspotUsers,
   monitorInterfaceTraffic,
+  pingWithStats,
 };
