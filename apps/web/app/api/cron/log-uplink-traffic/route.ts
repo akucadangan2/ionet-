@@ -55,6 +55,40 @@ export async function GET() {
         });
         logged++;
 
+        const kapasitas = Number(uplink.kapasitas_mbps) || 0;
+        const persenPemakaian = kapasitas > 0 ? ((downloadMbps || 0) / kapasitas) * 100 : 0;
+
+        if (persenPemakaian >= 80) {
+          const lastWarnKey = "warn_capacity_" + uplink.id;
+          const { data: lastWarn } = await supabase
+            .from("app_state")
+            .select("value, updated_at")
+            .eq("key", lastWarnKey)
+            .maybeSingle();
+
+          const menitSejakWarnTerakhir = lastWarn
+            ? (Date.now() - new Date(lastWarn.updated_at).getTime()) / 1000 / 60
+            : 999;
+
+          if (menitSejakWarnTerakhir >= 30) {
+            const adminContacts = await getActiveContacts("admin");
+            for (const contact of adminContacts) {
+              try {
+                await sendWhatsApp(
+                  contact.no_hp,
+                  `Peringatan: pemakaian jalur "${uplink.nama}" sudah ${persenPemakaian.toFixed(0)}% dari kapasitas (${downloadMbps} Mbps dari ${kapasitas} Mbps).`
+                );
+              } catch (waErr) {
+                console.error("Gagal kirim WA peringatan kapasitas:", waErr);
+              }
+            }
+
+            await supabase
+              .from("app_state")
+              .upsert({ key: lastWarnKey, value: "warned", updated_at: new Date().toISOString() }, { onConflict: "key" });
+          }
+        }
+
         if (uplink.status === "offline") {
           const { data: openGangguan } = await supabase
             .from("riwayat_gangguan_uplink")
