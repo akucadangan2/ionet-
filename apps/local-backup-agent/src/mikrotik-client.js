@@ -140,7 +140,8 @@ async function pingWithStats(config, interfaceName, targetIp, count) {
     results.forEach(function (r) {
       if (r.time && !r.timeout) {
         received++;
-        const ms = parseFloat(String(r.time).replace("ms", "").replace("us", "")) || 0;
+        const rawMicroseconds = parseFloat(String(r.time).replace("ms", "").replace("us", "")) || 0;
+        const ms = rawMicroseconds / 1000;
         times.push(ms);
         totalTime += ms;
       }
