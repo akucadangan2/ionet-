@@ -55,6 +55,28 @@ export async function GET() {
         });
         logged++;
 
+        if (uplink.status === "offline") {
+          const { data: openGangguan } = await supabase
+            .from("riwayat_gangguan_uplink")
+            .select("id, waktu_mulai")
+            .eq("uplink_id", uplink.id)
+            .is("waktu_selesai", null)
+            .order("waktu_mulai", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (openGangguan) {
+            const durasiMenit = (Date.now() - new Date(openGangguan.waktu_mulai).getTime()) / 1000 / 60;
+            await supabase
+              .from("riwayat_gangguan_uplink")
+              .update({
+                waktu_selesai: new Date().toISOString(),
+                durasi_menit: Math.round(durasiMenit),
+              })
+              .eq("id", openGangguan.id);
+          }
+        }
+
         await supabase
           .from("uplink")
           .update({ status: "online", last_seen_at: new Date().toISOString() })
@@ -65,6 +87,11 @@ export async function GET() {
 
         if (menitOffline >= OFFLINE_THRESHOLD_MENIT && uplink.status !== "offline") {
           await supabase.from("uplink").update({ status: "offline" }).eq("id", uplink.id);
+
+          await supabase.from("riwayat_gangguan_uplink").insert({
+            uplink_id: uplink.id,
+            waktu_mulai: lastSeen.toISOString(),
+          });
 
           const adminContacts = await getActiveContacts("admin");
           for (const contact of adminContacts) {

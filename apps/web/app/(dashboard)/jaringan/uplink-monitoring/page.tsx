@@ -19,6 +19,15 @@ interface UplinkData {
   error: string | null;
   history: HistoryPoint[];
 }
+
+interface GangguanRecord {
+  id: string;
+  waktu_mulai: string;
+  waktu_selesai: string | null;
+  durasi_menit: number | null;
+  uplink: { nama: string } | null;
+}
+
 function statusColor(status: string, error: string | null) {
   if (error) return "var(--color-signal-bad)";
   if (status === "online") return "var(--color-signal-good)";
@@ -28,6 +37,14 @@ function statusColor(status: string, error: string | null) {
 function usagePercent(download: number | null, kapasitas: number | null) {
   if (!download || !kapasitas) return 0;
   return Math.min((download / kapasitas) * 100, 100);
+}
+
+function formatDurasi(menit: number | null) {
+  if (menit === null) return "-";
+  if (menit < 60) return menit + " menit";
+  const jam = Math.floor(menit / 60);
+  const sisaMenit = Math.round(menit % 60);
+  return jam + " jam " + sisaMenit + " menit";
 }
 
 function MiniChart({ history, kapasitas }: { history: HistoryPoint[]; kapasitas: number | null }) {
@@ -57,6 +74,7 @@ function MiniChart({ history, kapasitas }: { history: HistoryPoint[]; kapasitas:
 
 export default function UplinkMonitoringPage() {
   const [uplinks, setUplinks] = useState<UplinkData[]>([]);
+  const [gangguanList, setGangguanList] = useState<GangguanRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -74,9 +92,23 @@ export default function UplinkMonitoringPage() {
     }
   }
 
+  async function loadGangguan() {
+    try {
+      const res = await fetch("/api/uplink/riwayat-gangguan");
+      const json = await res.json();
+      setGangguanList(json.data || []);
+    } catch {
+      // biarin kosong kalau gagal, jangan ganggu halaman utama
+    }
+  }
+
   useEffect(function () {
     loadData();
-    const interval = setInterval(loadData, 10000);
+    loadGangguan();
+    const interval = setInterval(function () {
+      loadData();
+      loadGangguan();
+    }, 10000);
     return function () { clearInterval(interval); };
   }, []);
 
@@ -93,7 +125,7 @@ export default function UplinkMonitoringPage() {
       {error && <p style={{ color: "var(--color-signal-bad)" }}>{error}</p>}
 
       {!loading && !error && (
-        <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(2, 1fr)" }}>
+        <div className="grid gap-4 mb-8" style={{ gridTemplateColumns: "repeat(2, 1fr)" }}>
           {uplinks.map(function (u, i) {
             const percent = usagePercent(u.downloadMbps, u.kapasitasMbps);
             return (
@@ -167,6 +199,51 @@ export default function UplinkMonitoringPage() {
           )}
         </div>
       )}
+
+      <h2 className="text-lg font-semibold mb-3">Riwayat Gangguan</h2>
+      <div className="rounded-lg overflow-hidden" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+        <table className="w-full">
+          <thead>
+            <tr style={{ background: "var(--color-bg)" }}>
+              <th className="text-left p-3 text-sm">Jalur</th>
+              <th className="text-left p-3 text-sm">Mulai</th>
+              <th className="text-left p-3 text-sm">Selesai</th>
+              <th className="text-left p-3 text-sm">Durasi</th>
+              <th className="text-left p-3 text-sm">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {gangguanList.map(function (g) {
+              return (
+                <tr key={g.id} style={{ borderTop: "1px solid var(--color-border)" }}>
+                  <td className="p-3 text-sm font-medium">{g.uplink?.nama || "-"}</td>
+                  <td className="p-3 text-sm">{new Date(g.waktu_mulai).toLocaleString("id-ID")}</td>
+                  <td className="p-3 text-sm">{g.waktu_selesai ? new Date(g.waktu_selesai).toLocaleString("id-ID") : "-"}</td>
+                  <td className="p-3 text-sm">{formatDurasi(g.durasi_menit)}</td>
+                  <td className="p-3">
+                    <span
+                      className="px-2 py-1 rounded text-xs font-medium"
+                      style={{
+                        background: g.waktu_selesai ? "var(--color-signal-good)22" : "var(--color-signal-bad)22",
+                        color: g.waktu_selesai ? "var(--color-signal-good)" : "var(--color-signal-bad)",
+                      }}
+                    >
+                      {g.waktu_selesai ? "Selesai" : "Sedang Gangguan"}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+            {gangguanList.length === 0 && (
+              <tr>
+                <td colSpan={5} className="text-center py-8 text-sm" style={{ color: "var(--color-ink-muted)" }}>
+                  Belum ada riwayat gangguan
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
