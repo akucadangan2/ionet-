@@ -17,9 +17,7 @@ export async function GET() {
   const { data: pendingMonthly } = await supabase
     .from("pembayaran_bulanan")
     .select("id")
-    .eq("status", "pending"
-      \
-    );
+    .eq("status", "pending");
 
   const allPending = [
     ...(pendingVouchers ?? []),
