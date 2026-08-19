@@ -1,15 +1,21 @@
 // components/NetworkMap.tsx
 "use client";
 import { useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup, LayersControl, Polyline } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, LayersControl, Polyline, ZoomControl } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
+
+const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+
+function mapboxUrl(styleId: string) {
+  return "https://api.mapbox.com/styles/v1/mapbox/" + styleId + "/tiles/{z}/{x}/{y}?access_token=" + MAPBOX_TOKEN;
+}
 
 function makeIcon(color: string, shape: "circle" | "diamond" = "circle") {
   const style =
     shape === "diamond"
-      ? "width:14px;height:14px;background:" + color + ";border:2px solid white;box-shadow:0 0 0 1px rgba(0,0,0,0.2);transform:rotate(45deg)"
-      : "width:16px;height:16px;border-radius:50%;background:" + color + ";border:2px solid white;box-shadow:0 0 0 1px rgba(0,0,0,0.2)";
+      ? "width:14px;height:14px;background:" + color + ";border:2px solid white;box-shadow:0 0 8px rgba(0,0,0,0.35);transform:rotate(45deg)"
+      : "width:16px;height:16px;border-radius:50%;background:" + color + ";border:2px solid white;box-shadow:0 0 8px rgba(0,0,0,0.35)";
   return new L.DivIcon({ className: "", html: '<div style="' + style + '"></div>', iconSize: [16, 16], iconAnchor: [8, 8] });
 }
 
@@ -89,10 +95,11 @@ const legendPanelStyle: React.CSSProperties = {
   bottom: 16,
   left: 16,
   zIndex: 1000,
-  background: "white",
-  borderRadius: 10,
-  padding: "12px 14px",
-  boxShadow: "0 2px 12px rgba(0,0,0,0.18)",
+  background: "rgba(255,255,255,0.97)",
+  backdropFilter: "blur(6px)",
+  borderRadius: 12,
+  padding: "14px 16px",
+  boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
   fontSize: 12,
   maxWidth: 220,
 };
@@ -102,10 +109,11 @@ const layerPanelStyle: React.CSSProperties = {
   top: 16,
   left: 16,
   zIndex: 1000,
-  background: "white",
-  borderRadius: 10,
-  padding: "10px 14px",
-  boxShadow: "0 2px 12px rgba(0,0,0,0.18)",
+  background: "rgba(255,255,255,0.97)",
+  backdropFilter: "blur(6px)",
+  borderRadius: 12,
+  padding: "12px 16px",
+  boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
   fontSize: 12,
 };
 
@@ -137,14 +145,38 @@ export default function NetworkMap({ routers, pelanggan, titikJaringan, jalurKab
   const jumlahOdc = (titikJaringan || []).filter(function (t) { return t.tipe === "odc"; }).length;
   const jumlahOdp = (titikJaringan || []).filter(function (t) { return t.tipe === "odp"; }).length;
 
+  const hasMapbox = Boolean(MAPBOX_TOKEN);
+
   return (
     <div style={{ position: "relative" }}>
-      <MapContainer center={center} zoom={15} style={{ height: "600px", width: "100%" }}>
+      <MapContainer center={center} zoom={15} zoomControl={false} style={{ height: "600px", width: "100%" }}>
+        <ZoomControl position="bottomright" />
+
         <LayersControl position="topright">
-          <LayersControl.BaseLayer checked name="Peta Jalan">
+          {hasMapbox && (
+            <LayersControl.BaseLayer checked name="Mapbox Streets">
+              <TileLayer url={mapboxUrl("streets-v12")} attribution="&copy; Mapbox &copy; OpenStreetMap" tileSize={512} zoomOffset={-1} maxZoom={22} />
+            </LayersControl.BaseLayer>
+          )}
+          {hasMapbox && (
+            <LayersControl.BaseLayer name="Mapbox Satelit">
+              <TileLayer url={mapboxUrl("satellite-streets-v12")} attribution="&copy; Mapbox &copy; OpenStreetMap" tileSize={512} zoomOffset={-1} maxZoom={22} />
+            </LayersControl.BaseLayer>
+          )}
+          {hasMapbox && (
+            <LayersControl.BaseLayer name="Mapbox Navigasi Malam">
+              <TileLayer url={mapboxUrl("navigation-night-v1")} attribution="&copy; Mapbox &copy; OpenStreetMap" tileSize={512} zoomOffset={-1} maxZoom={22} />
+            </LayersControl.BaseLayer>
+          )}
+          {hasMapbox && (
+            <LayersControl.BaseLayer name="Mapbox Outdoor">
+              <TileLayer url={mapboxUrl("outdoors-v12")} attribution="&copy; Mapbox &copy; OpenStreetMap" tileSize={512} zoomOffset={-1} maxZoom={22} />
+            </LayersControl.BaseLayer>
+          )}
+          <LayersControl.BaseLayer checked={!hasMapbox} name="Peta Jalan (Gratis)">
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap contributors" />
           </LayersControl.BaseLayer>
-          <LayersControl.BaseLayer name="Satelit">
+          <LayersControl.BaseLayer name="Satelit Esri (Gratis)">
             <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" attribution="Tiles &copy; Esri" />
           </LayersControl.BaseLayer>
         </LayersControl>
@@ -152,7 +184,7 @@ export default function NetworkMap({ routers, pelanggan, titikJaringan, jalurKab
         {showJalur &&
           (jalurKabel || []).map(function (j) {
             return (
-              <Polyline key={j.id} positions={j.koordinat} pathOptions={{ color: j.warna, weight: 3 }}>
+              <Polyline key={j.id} positions={j.koordinat} pathOptions={{ color: j.warna, weight: 4, opacity: 0.85 }}>
                 <Popup>
                   <b>{j.nama}</b>
                   <br />
@@ -247,7 +279,7 @@ export default function NetworkMap({ routers, pelanggan, titikJaringan, jalurKab
       </MapContainer>
 
       <div style={layerPanelStyle}>
-        <p style={{ fontWeight: 600, marginBottom: 6, color: "#333" }}>Layer</p>
+        <p style={{ fontWeight: 600, marginBottom: 8, color: "#333" }}>Layer Data</p>
         <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, cursor: "pointer" }}>
           <input type="checkbox" checked={showRouter} onChange={function () { setShowRouter(!showRouter); }} />
           Router ({routers.length})
@@ -267,7 +299,7 @@ export default function NetworkMap({ routers, pelanggan, titikJaringan, jalurKab
       </div>
 
       <div style={legendPanelStyle}>
-        <p style={{ fontWeight: 600, marginBottom: 6, color: "#333" }}>Legenda</p>
+        <p style={{ fontWeight: 600, marginBottom: 8, color: "#333" }}>Legenda</p>
         <LegendDot color="#2FAE60" label="Router / Pelanggan Online" />
         <LegendDot color="#D64545" label="Router / Pelanggan Offline" />
         <LegendDot color="#E8B923" label="Aktif + Reseller Voucher" />

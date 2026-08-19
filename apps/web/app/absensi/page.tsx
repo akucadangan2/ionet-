@@ -35,6 +35,9 @@ export default function AbsensiPage() {
 
   useEffect(function () {
     if (!navigator.geolocation) {
+
+
+      
       setLocationError("Browser tidak mendukung GPS");
       return;
     }

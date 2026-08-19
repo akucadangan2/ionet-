@@ -16,7 +16,7 @@ export async function GET() {
     if (!routerResult.data) {
       return NextResponse.json({ signals: [], message: "Belum ada router dengan OLT vendor diset" });
     }
-
+.
     const vendorResult = await supabase
       .from("olt_vendor_config")
       .select("oid_nama, oid_rx_power, power_divisor, status")
@@ -27,8 +27,7 @@ export async function GET() {
       return NextResponse.json({ signals: [], message: "Konfigurasi OID vendor ini belum tersedia" });
     }
 
-    const cfg = vendorResult.data;
-    const params = new URLSearchParams({
+    const cfg = vendorResult.data    const params = new URLSearchParams({
       host: "192.168.44.102",
       community: "public",
       oidRxPower: cfg.oid_rx_power,

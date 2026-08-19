@@ -22,7 +22,7 @@ create table router (
   api_username text not null,
   api_password text not null,  -- simpan terenkripsi di app layer, jangan plaintext
   tipe text check (tipe in ('hotspot', 'pppoe')) not null,
-  created_at timestamptz default now()
+  created_at timestaaptz default now()
 );
 
 -- Sumber uplink per lokasi (ISP / Starlink / dll)
