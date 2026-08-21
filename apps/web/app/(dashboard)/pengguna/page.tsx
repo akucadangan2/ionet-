@@ -9,6 +9,7 @@ interface Staff {
   nama: string;
   role: string;
   no_hp: string | null;
+  auth_user_id: string;
 }
 
 const roleStyle: Record<string, { bg: string; color: string; label: string }> = {
@@ -25,11 +26,15 @@ export default function PenggunaPage() {
   const [email, setEmail] = useState("");
   const [noHp, setNoHp] = useState("");
   const [role, setRole] = useState("admin");
+  const [password, setPassword] = useState("");
   const [saving, setSaving] = useState(false);
+  const [resetTargetId, setResetTargetId] = useState<string | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetting, setResetting] = useState(false);
 
   async function loadData() {
     setLoading(true);
-    const { data } = await supabase.from("staff").select("id, nama, role, no_hp").order("nama");
+    const { data } = await supabase.from("staff").select("id, nama, role, no_hp, auth_user_id").order("nama");
     setStaffList(data ?? []);
     setLoading(false);
   }
@@ -42,7 +47,7 @@ export default function PenggunaPage() {
     setSaving(true);
     const res = await fetch("/api/staff/create", {
       method: "POST",
-      body: JSON.stringify({ nama, email, noHp, role }),
+      body: JSON.stringify({ nama, email, noHp, role, password: password || undefined }),
     });
     const json = await res.json();
     setSaving(false);
@@ -51,7 +56,25 @@ export default function PenggunaPage() {
     setNama("");
     setEmail("");
     setNoHp("");
+    setPassword("");
     loadData();
+  }
+
+  async function handleResetPassword(authUserId: string) {
+    if (!resetPassword || resetPassword.length < 6) {
+      alert("Password minimal 6 karakter");
+      return;
+    }
+    setResetting(true);
+    const res = await fetch("/api/staff/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ authUserId, newPassword: resetPassword }),
+    });
+    const json = await res.json();
+    setResetting(false);
+    alert(json.message);
+    setResetTargetId(null);
+    setResetPassword("");
   }
 
   if (loading) return <p style={{ color: "var(--color-ink-muted)" }}>Memuat...</p>;
@@ -90,6 +113,10 @@ export default function PenggunaPage() {
             <input value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} />
           </div>
           <div>
+            <label className="text-xs block mb-1" style={{ color: "var(--color-ink-muted)" }}>Password (kosongkan = acak otomatis)</label>
+            <input type="text" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 6 karakter" style={inputStyle} />
+          </div>
+          <div>
             <label className="text-xs block mb-1" style={{ color: "var(--color-ink-muted)" }}>No HP</label>
             <input value={noHp} onChange={(e) => setNoHp(e.target.value)} style={inputStyle} />
           </div>
@@ -113,9 +140,9 @@ export default function PenggunaPage() {
       )}
 
       <div className="rounded-lg overflow-hidden" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
-        <table>
+        <table className="w-full">
           <thead>
-            <tr><th>Nama</th><th>Role</th><th>No HP</th></tr>
+            <tr><th>Nama</th><th>Role</th><th>No HP</th><th>Aksi</th></tr>
           </thead>
           <tbody>
             {staffList.map((s) => (
@@ -130,11 +157,47 @@ export default function PenggunaPage() {
                   </span>
                 </td>
                 <td className="mono">{s.no_hp ?? "-"}</td>
+                <td>
+                  {resetTargetId === s.auth_user_id ? (
+                    <div className="flex gap-1 items-center">
+                      <input
+                        type="text"
+                        placeholder="Password baru"
+                        value={resetPassword}
+                        onChange={(e) => setResetPassword(e.target.value)}
+                        style={{ ...inputStyle, width: 130, padding: "4px 8px" }}
+                      />
+                      <button
+                        onClick={() => handleResetPassword(s.auth_user_id)}
+                        disabled={resetting}
+                        className="px-2 py-1 rounded text-xs text-white"
+                        style={{ background: "var(--color-signal-good)" }}
+                      >
+                        {resetting ? "..." : "Simpan"}
+                      </button>
+                      <button
+                        onClick={() => { setResetTargetId(null); setResetPassword(""); }}
+                        className="px-2 py-1 rounded text-xs"
+                        style={{ border: "1px solid var(--color-border)" }}
+                      >
+                        Batal
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setResetTargetId(s.auth_user_id)}
+                      className="px-2 py-1 rounded text-xs"
+                      style={{ border: "1px solid var(--color-border)" }}
+                    >
+                      Reset Password
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
             {staffList.length === 0 && (
               <tr>
-                <td colSpan={3} className="text-center py-8" style={{ color: "var(--color-ink-muted)" }}>
+                <td colSpan={4} className="text-center py-8" style={{ color: "var(--color-ink-muted)" }}>
                   Belum ada staff terdaftar
                 </td>
               </tr>

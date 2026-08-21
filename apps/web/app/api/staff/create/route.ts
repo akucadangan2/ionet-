@@ -9,11 +9,8 @@ const supabaseAdmin = createClient(
 );
 
 export async function POST(req: NextRequest) {
-  const { nama, email, noHp, role } = await req.json();
-
-  // TODO: sebaiknya cek dulu requester ini super_admin (baca session), belum ditambahin di sini
-
-  const tempPassword = Math.random().toString(36).slice(-10);
+  const { nama, email, noHp, role, password } = await req.json();
+  const tempPassword = password && password.length >= 6 ? password : Math.random().toString(36).slice(-10);
 
   const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
     email,
