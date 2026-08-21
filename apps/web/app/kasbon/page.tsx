@@ -17,7 +17,7 @@ export default function KasbonPage() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-w
+
   useEffect(function () {
     async function load() {
       const result = await supabase.from("karyawan").select("id, nama").eq("status", "aktif").order("nama");
