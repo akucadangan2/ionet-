@@ -7,19 +7,54 @@ export async function GET() {
     const res = await fetch(`${NBI_URL}/devices`, { cache: "no-store" });
     const devices = await res.json();
 
+    function findPppoeInfo(device: any): { username: string | null; externalIp: string | null } {
+      const igd = device.InternetGatewayDevice || {};
+      const wan = igd.WANDevice || {};
+      for (const wanKey in wan) {
+        if (wanKey.startsWith("_")) continue;
+        const wcd = wan[wanKey].WANConnectionDevice || {};
+        for (const wcdKey in wcd) {
+          if (wcdKey.startsWith("_")) continue;
+          const ppp = wcd[wcdKey].WANPPPConnection || {};
+          for (const pppKey in ppp) {
+            if (pppKey.startsWith("_")) continue;
+            const conn = ppp[pppKey];
+            const uname = conn.Username?._value;
+            if (uname) {
+              return { username: uname, externalIp: conn.ExternalIPAddress?._value || null };
+            }
+          }
+        }
+      }
+      return { username: null, externalIp: null };
+    }
+
+    function findSsid(device: any): string | null {
+      const igd = device.InternetGatewayDevice || {};
+      const lan = igd.LANDevice || {};
+      for (const lanKey in lan) {
+        if (lanKey.startsWith("_")) continue;
+        const wlanConf = lan[lanKey].WLANConfiguration || {};
+        for (const wlanKey in wlanConf) {
+          if (wlanKey.startsWith("_")) continue;
+          const ssid = wlanConf[wlanKey].SSID?._value;
+          if (ssid) return ssid;
+        }
+      }
+      return null;
+    }
+
     const simplified = devices.map((d: any) => {
-      const igd = d.InternetGatewayDevice || {};
-      const wlan = igd.LANDevice?.["1"]?.WLANConfiguration?.["1"];
-      const pppUser = igd.WANDevice?.["1"]?.WANConnectionDevice?.["2"]?.WANPPPConnection?.["1"];
+      const pppInfo = findPppoeInfo(d);
 
       return {
         deviceId: d._id,
         manufacturer: d._deviceId?._Manufacturer,
         productClass: d._deviceId?._ProductClass,
         serialNumber: d._deviceId?._SerialNumber,
-        ssid: wlan?.SSID?._value || null,
-        pppoeUsername: pppUser?.Username?._value || null,
-        externalIp: pppUser?.ExternalIPAddress?._value || null,
+        ssid: findSsid(d),
+        pppoeUsername: pppInfo.username,
+        externalIp: pppInfo.externalIp,
         lastInform: d._lastInform,
       };
     });
