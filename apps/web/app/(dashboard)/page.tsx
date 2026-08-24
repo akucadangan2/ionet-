@@ -65,6 +65,7 @@ const menuGroups = [
       { href: "/jaringan/rekap-uplink", label: "Rekap Uplink", icon: Gauge },
       { href: "/jaringan/sinyal-olt", label: "Sinyal OLT", icon: Zap },
       { href: "/jaringan/genieacs", label: "Kelola Modem", icon: Wifi },
+      { href: "/jaringan/genieacs-coverage", label: "Cakupan GenieACS", icon: Radio },
       { href: "/jaringan/lokasi", label: "Lokasi", icon: MapPin },
     ],
   },
