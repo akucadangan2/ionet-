@@ -38,15 +38,27 @@ export async function GET() {
       if (uname) genieacsUsernames.add(uname.toLowerCase());
     });
 
-    const sudah: { nama: string; pppoe_username: string }[] = [];
-    const belum: { nama: string; pppoe_username: string }[] = [];
+    const { data: statusList } = await supabase.from("genieacs_status_pelanggan").select("*");
+    const statusMap: Record<string, { status: string; catatan: string | null }> = {};
+    (statusList || []).forEach((s) => {
+      statusMap[s.pppoe_username.toLowerCase()] = { status: s.status, catatan: s.catatan };
+    });
+
+    const sudah: any[] = [];
+    const belum: any[] = [];
 
     (pelangganList || []).forEach((p) => {
       const uname = (p.pppoe_username || "").toLowerCase();
+      const statusInfo = statusMap[uname];
       if (genieacsUsernames.has(uname)) {
         sudah.push({ nama: p.nama, pppoe_username: p.pppoe_username });
       } else {
-        belum.push({ nama: p.nama, pppoe_username: p.pppoe_username });
+        belum.push({
+          nama: p.nama,
+          pppoe_username: p.pppoe_username,
+          status: statusInfo?.status || "belum_dicoba",
+          catatan: statusInfo?.catatan || null,
+        });
       }
     });
 
