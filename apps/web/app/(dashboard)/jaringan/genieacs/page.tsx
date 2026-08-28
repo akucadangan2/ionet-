@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import * as XLSX from "xlsx";
 
 interface Device {
   deviceId: string;
@@ -59,15 +60,40 @@ export default function GenieAcsPage() {
     }
   }
 
+  function handleExportExcel() {
+    const data = devices.map(function (d) {
+      return {
+        "Username PPPoE": d.pppoeUsername || "-",
+        Model: `${d.manufacturer || ""} ${d.productClass || ""}`.trim(),
+        "Serial Number": d.serialNumber || "-",
+        "SSID WiFi": d.ssid || "-",
+        "IP WAN": d.externalIp || "-",
+        "Terakhir Lapor": d.lastInform ? new Date(d.lastInform).toLocaleString("id-ID") : "-",
+      };
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(data);
+    XLSX.utils.book_append_sheet(wb, ws, "GenieACS Devices");
+
+    const tanggal = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `genieacs-devices-${tanggal}.xlsx`);
+  }
+
   const inputStyle = { border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px" };
 
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
         <h1 className="text-2xl font-semibold">Kelola Modem (GenieACS)</h1>
-        <button onClick={loadDevices} className="px-4 py-2 rounded-lg text-sm" style={{ border: "1px solid var(--color-border)" }}>
-          Refresh
-        </button>
+        <div className="flex gap-2">
+          <button onClick={handleExportExcel} className="px-4 py-2 rounded-lg text-sm" style={{ border: "1px solid var(--color-border)" }}>
+            Export Excel
+          </button>
+          <button onClick={loadDevices} className="px-4 py-2 rounded-lg text-sm" style={{ border: "1px solid var(--color-border)" }}>
+            Refresh
+          </button>
+        </div>
       </div>
       <p className="text-sm mb-6" style={{ color: "var(--color-ink-muted)" }}>
         {devices.length} modem terhubung
