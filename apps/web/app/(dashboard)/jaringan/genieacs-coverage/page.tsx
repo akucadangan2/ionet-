@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import * as XLSX from "xlsx";
 
 interface PelangganItem {
   nama: string;
@@ -59,6 +60,35 @@ export default function GenieAcsCoveragePage() {
     setSavingUsername(null);
   }
 
+  function handleExportExcel() {
+    const dataSudah = sudah.map(function (p) {
+      return {
+        Nama: p.nama,
+        "Username PPPoE": p.pppoe_username,
+        Status: "Sudah Terhubung",
+      };
+    });
+
+    const dataBelum = belum.map(function (p) {
+      const label = statusOptions.find(function (o) { return o.value === (p.status || "belum_dicoba"); })?.label || "Belum Dicoba";
+      return {
+        Nama: p.nama,
+        "Username PPPoE": p.pppoe_username,
+        Status: label,
+        Catatan: p.catatan || "",
+      };
+    });
+
+    const wb = XLSX.utils.book_new();
+    const wsSudah = XLSX.utils.json_to_sheet(dataSudah);
+    const wsBelum = XLSX.utils.json_to_sheet(dataBelum);
+    XLSX.utils.book_append_sheet(wb, wsBelum, "Belum");
+    XLSX.utils.book_append_sheet(wb, wsSudah, "Sudah");
+
+    const tanggal = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `cakupan-genieacs-${tanggal}.xlsx`);
+  }
+
   const list = tab === "belum" ? belum : sudah;
   const belumDicoba = belum.filter(function (p) { return !p.status || p.status === "belum_dicoba"; }).length;
 
@@ -66,9 +96,14 @@ export default function GenieAcsCoveragePage() {
     <div>
       <div className="flex items-center justify-between mb-1">
         <h1 className="text-2xl font-semibold">Cakupan GenieACS</h1>
-        <button onClick={loadData} className="px-4 py-2 rounded-lg text-sm" style={{ border: "1px solid var(--color-border)" }}>
-          Refresh
-        </button>
+        <div className="flex gap-2">
+          <button onClick={handleExportExcel} className="px-4 py-2 rounded-lg text-sm" style={{ border: "1px solid var(--color-border)" }}>
+            Export Excel
+          </button>
+          <button onClick={loadData} className="px-4 py-2 rounded-lg text-sm" style={{ border: "1px solid var(--color-border)" }}>
+            Refresh
+          </button>
+        </div>
       </div>
       <p className="text-sm mb-6" style={{ color: "var(--color-ink-muted)" }}>
         {sudah.length} sudah terhubung, {belumDicoba} belum pernah dicoba dari {belum.length} yang belum berhasil
