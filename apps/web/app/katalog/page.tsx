@@ -104,7 +104,7 @@ function VoucherSection() {
       </div>
 
       {paymentUrl ? (
-        <div className="rounded-xl p-6 text-center" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+        <div className="rounded-xl p-6 text-center" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", position: "relative", zIndex: 100 }}>
           <p className="text-sm mb-4" style={{ color: "var(--color-ink-muted)" }}>
             Transaksi berhasil dibuat. Kalau tidak otomatis pindah, tekan tombol di bawah:
           </p>
@@ -118,10 +118,17 @@ function VoucherSection() {
               padding: "15px 0",
               fontSize: 15,
               textDecoration: "none",
+              cursor: "pointer",
+              WebkitTapHighlightColor: "rgba(0,0,0,0.1)",
             }}
           >
             Lanjut ke Pembayaran
           </a>
+          <p className="text-xs mt-4" style={{ color: "var(--color-ink-muted)", wordBreak: "break-all" }}>
+            Kalau tombol tidak bisa ditekan, salin link ini dan buka manual di browser:
+            <br />
+            <span style={{ userSelect: "all", color: "var(--color-accent)" }}>{paymentUrl}</span>
+          </p>
         </div>
       ) : loading ? (
         <p className="text-center" style={{ color: "var(--color-ink-muted)" }}>Memuat paket...</p>
