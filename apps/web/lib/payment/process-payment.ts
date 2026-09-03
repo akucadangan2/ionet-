@@ -52,7 +52,7 @@ export async function processPaymentSuccess(orderId: string) {
       try {
         await sendWhatsApp(
           voucherTx.no_hp_pembeli,
-          `Pembayaran berhasil! Voucher kamu:\nUsername: ${username}\nPassword: ${password}\n\nStruk: ${process.env.NEXT_PUBLIC_APP_URL}/struk/${struk.id}`
+          `Pembayaran berhasil!\n\nKode Voucher: ${kodeVoucher}\n\nCara pakai:\n1. Hubungkan ke WiFi IONET+\n2. Masukkan kode voucher di atas pada kolom "Kode Voucher"\n3. Klik Login\n\nStruk: ${process.env.NEXT_PUBLIC_APP_URL}/struk/${struk.id}`
         );
       } catch (waError) {
         console.error("Gagal kirim WA (voucher tetap berhasil dibuat):", waError);
