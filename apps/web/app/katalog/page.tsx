@@ -35,7 +35,7 @@ function VoucherSection() {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
 
   useEffect(function () {
     async function load() {
@@ -51,15 +51,12 @@ function VoucherSection() {
   }, []);
 
   useEffect(function () {
-    if (!processing) {
-      setElapsedSeconds(0);
-      return;
-    }
-    const interval = setInterval(function () {
-      setElapsedSeconds(function (s) { return s + 1; });
-    }, 1000);
-    return function () { clearInterval(interval); };
-  }, [processing]);
+    if (!paymentUrl) return;
+    const timer = setTimeout(function () {
+      window.location.href = paymentUrl;
+    }, 300);
+    return function () { clearTimeout(timer); };
+  }, [paymentUrl]);
 
   async function handleBeli() {
     setErrorMsg("");
@@ -82,7 +79,8 @@ function VoucherSection() {
       if (!res.ok || !json.paymentUrl) {
         throw new Error(json.message || "Gagal memproses pembayaran");
       }
-      window.location.href = json.paymentUrl;
+      setPaymentUrl(json.paymentUrl);
+      setProcessing(false);
     } catch (err) {
       clearTimeout(timeoutId);
       if ((err as Error).name === "AbortError") {
@@ -94,13 +92,6 @@ function VoucherSection() {
     }
   }
 
-  var stageMessage = "Menyiapkan transaksi...";
-  if (elapsedSeconds >= 5 && elapsedSeconds < 12) {
-    stageMessage = "Menghubungkan ke gateway pembayaran...";
-  } else if (elapsedSeconds >= 12) {
-    stageMessage = "Agak lama dari biasanya, mohon tunggu sebentar lagi...";
-  }
-
   return (
     <section id="beli-voucher" style={{ padding: "32px 16px 110px", maxWidth: 480, margin: "0 auto" }}>
       <div className="text-center mb-6">
@@ -108,11 +99,31 @@ function VoucherSection() {
           Butuh Internet Sementara?
         </h2>
         <p style={{ color: "var(--color-ink-muted)", lineHeight: 1.6, fontSize: 14 }}>
-          Beli voucher hotspot langsung dari sini
+          Beli voucher hotspot langsung dari sini, bayar pakai QRIS
         </p>
       </div>
 
-      {loading ? (
+      {paymentUrl ? (
+        <div className="rounded-xl p-6 text-center" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+          <p className="text-sm mb-4" style={{ color: "var(--color-ink-muted)" }}>
+            Transaksi berhasil dibuat. Kalau tidak otomatis pindah, tekan tombol di bawah:
+          </p>
+          <a
+            href={paymentUrl}
+            className="w-full font-medium text-white"
+            style={{
+              display: "block",
+              background: "var(--color-accent)",
+              borderRadius: 10,
+              padding: "15px 0",
+              fontSize: 15,
+              textDecoration: "none",
+            }}
+          >
+            Lanjut ke Pembayaran
+          </a>
+        </div>
+      ) : loading ? (
         <p className="text-center" style={{ color: "var(--color-ink-muted)" }}>Memuat paket...</p>
       ) : (
         <div className="rounded-xl p-5" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
@@ -164,87 +175,8 @@ function VoucherSection() {
               opacity: processing ? 0.6 : 1,
             }}
           >
-            {processing ? "Memproses..." : "Bayar Sekarang"}
+            {processing ? "Memproses..." : "Bayar dengan QRIS"}
           </button>
-        </div>
-      )}
-
-      {processing && (
-        <div className="payment-overlay">
-          <div className="payment-overlay-card">
-            <div className="payment-wifi-icon">
-              <span className="payment-ring ring-1" />
-              <span className="payment-ring ring-2" />
-              <span className="payment-ring ring-3" />
-              <div className="payment-wifi-core">
-                <Wifi size={26} color="white" />
-              </div>
-            </div>
-            <h3 style={{ fontFamily: "var(--font-display)", fontSize: 17, color: "white", marginTop: 20, marginBottom: 6 }}>
-              Menghubungkan ke Pembayaran
-            </h3>
-            <p style={{ color: "#9CA3AF", fontSize: 13, textAlign: "center", padding: "0 24px", lineHeight: 1.6 }}>
-              {stageMessage}
-            </p>
-            <p style={{ color: "#6B7280", fontSize: 11, marginTop: 16 }}>
-              Jangan tutup atau kembali dari halaman ini
-            </p>
-          </div>
-
-          <style jsx>{`
-            .payment-overlay {
-              position: fixed;
-              inset: 0;
-              background: var(--color-sidebar);
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              z-index: 200;
-            }
-            .payment-overlay-card {
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-            }
-            .payment-wifi-icon {
-              position: relative;
-              width: 90px;
-              height: 90px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-            }
-            .payment-wifi-core {
-              position: relative;
-              z-index: 2;
-              width: 56px;
-              height: 56px;
-              border-radius: 50%;
-              background: var(--color-accent);
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              box-shadow: 0 0 24px rgba(30, 136, 229, 0.6);
-            }
-            .payment-ring {
-              position: absolute;
-              border: 3px solid var(--color-accent);
-              border-radius: 50%;
-              opacity: 0;
-              animation: paymentPulse 2s ease-out infinite;
-            }
-            .ring-1 { width: 56px; height: 56px; animation-delay: 0s; }
-            .ring-2 { width: 56px; height: 56px; animation-delay: 0.5s; }
-            .ring-3 { width: 56px; height: 56px; animation-delay: 1s; }
-
-            @keyframes paymentPulse {
-              0% { transform: scale(1); opacity: 0.7; }
-              100% { transform: scale(2.2); opacity: 0; }
-            }
-            @media (prefers-reduced-motion: reduce) {
-              .payment-ring { animation: none; opacity: 0.3; }
-            }
-          `}</style>
         </div>
       )}
     </section>
