@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase/admin";
 import { createCheckout } from "@/lib/doku/client";
-
+export const maxDuration = 30;
 export async function POST(req: NextRequest) {
   try {
     const { paketVoucherId, noHpPembeli } = await req.json();
