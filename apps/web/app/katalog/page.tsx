@@ -28,7 +28,11 @@ const inputStyle = {
   boxSizing: "border-box" as const,
 };
 
-function VoucherSection() {
+interface VoucherSectionProps {
+  onPaymentUrlChange: (url: string | null) => void;
+}
+
+function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
   const [paketList, setPaketList] = useState<PaketVoucher[]>([]);
   const [selectedPaket, setSelectedPaket] = useState("");
   const [noHp, setNoHp] = useState("");
@@ -51,12 +55,22 @@ function VoucherSection() {
   }, []);
 
   useEffect(function () {
+    onPaymentUrlChange(paymentUrl);
+  }, [paymentUrl]);
+
+  useEffect(function () {
     if (!paymentUrl) return;
     const timer = setTimeout(function () {
-      window.location.href = paymentUrl;
+      window.location.assign(paymentUrl);
     }, 300);
     return function () { clearTimeout(timer); };
   }, [paymentUrl]);
+
+  function handleLanjutPembayaran() {
+    if (paymentUrl) {
+      window.location.assign(paymentUrl);
+    }
+  }
 
   async function handleBeli() {
     setErrorMsg("");
@@ -104,28 +118,31 @@ function VoucherSection() {
       </div>
 
       {paymentUrl ? (
-        <div className="rounded-xl p-6 text-center" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", position: "relative", zIndex: 100 }}>
+        <div className="rounded-xl p-6 text-center" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
           <p className="text-sm mb-4" style={{ color: "var(--color-ink-muted)" }}>
             Transaksi berhasil dibuat. Kalau tidak otomatis pindah, tekan tombol di bawah:
           </p>
-          <a
-            href={paymentUrl}
+          <button
+            type="button"
+            onClick={handleLanjutPembayaran}
+            onTouchEnd={function (e) { e.preventDefault(); handleLanjutPembayaran(); }}
             className="w-full font-medium text-white"
             style={{
               display: "block",
               background: "var(--color-accent)",
+              border: "none",
               borderRadius: 10,
               padding: "15px 0",
               fontSize: 15,
-              textDecoration: "none",
               cursor: "pointer",
-              WebkitTapHighlightColor: "rgba(0,0,0,0.1)",
+              WebkitTapHighlightColor: "rgba(0,0,0,0.15)",
+              touchAction: "manipulation",
             }}
           >
             Lanjut ke Pembayaran
-          </a>
+          </button>
           <p className="text-xs mt-4" style={{ color: "var(--color-ink-muted)", wordBreak: "break-all" }}>
-            Kalau tombol tidak bisa ditekan, salin link ini dan buka manual di browser:
+            Kalau tombol tidak bisa ditekan, tekan-tahan link ini lalu pilih "Buka" atau salin ke browser:
             <br />
             <span style={{ userSelect: "all", color: "var(--color-accent)" }}>{paymentUrl}</span>
           </p>
@@ -193,6 +210,7 @@ function VoucherSection() {
 export default function KatalogPage() {
   const [paketBulanan, setPaketBulanan] = useState<PaketBulanan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [voucherPaymentUrl, setVoucherPaymentUrl] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -319,31 +337,33 @@ export default function KatalogPage() {
         </div>
       </section>
 
-      <VoucherSection />
+      <VoucherSection onPaymentUrlChange={setVoucherPaymentUrl} />
 
-      <button
-        onClick={scrollToBeliVoucher}
-        style={{
-          position: "fixed",
-          bottom: "calc(16px + env(safe-area-inset-bottom))",
-          left: "50%",
-          transform: "translateX(-50%)",
-          background: "var(--color-accent)",
-          color: "white",
-          border: "none",
-          borderRadius: 30,
-          padding: "13px 24px",
-          fontSize: 13,
-          fontWeight: 600,
-          minHeight: 44,
-          boxShadow: "0 4px 20px rgba(30,136,229,0.4)",
-          cursor: "pointer",
-          zIndex: 50,
-          maxWidth: "calc(100vw - 32px)",
-        }}
-      >
-        Beli Voucher Sekarang
-      </button>
+      {!voucherPaymentUrl && (
+        <button
+          onClick={scrollToBeliVoucher}
+          style={{
+            position: "fixed",
+            bottom: "calc(16px + env(safe-area-inset-bottom))",
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "var(--color-accent)",
+            color: "white",
+            border: "none",
+            borderRadius: 30,
+            padding: "13px 24px",
+            fontSize: 13,
+            fontWeight: 600,
+            minHeight: 44,
+            boxShadow: "0 4px 20px rgba(30,136,229,0.4)",
+            cursor: "pointer",
+            zIndex: 50,
+            maxWidth: "calc(100vw - 32px)",
+          }}
+        >
+          Beli Voucher Sekarang
+        </button>
+      )}
 
       <footer style={{ background: "var(--color-sidebar)", padding: "40px 20px 90px", color: "#9CA3AF" }}>
         <div style={{ maxWidth: 800, margin: "0 auto", textAlign: "center" }}>
