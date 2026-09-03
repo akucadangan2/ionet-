@@ -62,12 +62,10 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
   async function handleCopyLink() {
     if (!paymentUrl) return;
     try {
-      // Coba pakai clipboard API dulu
       await navigator.clipboard.writeText(paymentUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     } catch (err) {
-      // Fallback khusus untuk mode Captive Portal / In-App Browser yang memblokir clipboard
       const input = document.getElementById("url-input") as HTMLInputElement;
       if (input) {
         input.select();
@@ -96,10 +94,16 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
       });
       clearTimeout(timeoutId);
       const json = await res.json();
+      
       if (!res.ok || !json.paymentUrl) {
         throw new Error(json.message || "Gagal memproses pembayaran");
       }
+      
       setPaymentUrl(json.paymentUrl);
+      
+      // EKSEKUSI REDIRECT LANGSUNG (Bypass iOS restriction)
+      window.location.href = json.paymentUrl;
+      
       setProcessing(false);
     } catch (err) {
       clearTimeout(timeoutId);
@@ -126,12 +130,11 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
       {paymentUrl ? (
         <div className="rounded-xl p-6 text-center" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
           <p className="text-sm mb-4" style={{ color: "var(--color-ink-muted)" }}>
-            Transaksi berhasil dibuat. Silakan klik tombol di bawah ini:
+            Mengarahkan ke halaman pembayaran...
           </p>
           
-          {/* PENTING: Jangan pakai target="_blank" di sini, Captive Portal iOS tidak mendukung tab baru */}
-          <a
-            href={paymentUrl}
+          <button
+            onClick={() => { window.location.href = paymentUrl; }}
             className="w-full font-medium text-white flex items-center justify-center"
             style={{
               display: "flex",
@@ -141,13 +144,13 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
               padding: "15px 0",
               fontSize: 15,
               textDecoration: "none",
+              cursor: "pointer",
               WebkitTapHighlightColor: "rgba(0,0,0,0)",
             }}
           >
             Lanjut ke Pembayaran
-          </a>
+          </button>
 
-          {/* Fallback Manual Copy yang ramah iOS Captive Portal */}
           <div className="mt-5 text-left">
             <p className="text-xs mb-2" style={{ color: "var(--color-ink-muted)" }}>
               Atau salin link di bawah dan buka di browser (Safari/Chrome):
