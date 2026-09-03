@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import NetworkBackground from "@/components/NetworkBackground";
-import { Wifi, Zap, ShieldCheck, Clock, MapPin, Phone } from "lucide-react";
+import { Wifi, Zap, ShieldCheck, Clock, MapPin, Phone, Copy, CheckCircle2 } from "lucide-react";
 
 interface PaketBulanan {
   id: string;
@@ -40,6 +40,7 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
   const [processing, setProcessing] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(function () {
     async function load() {
@@ -58,17 +59,22 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
     onPaymentUrlChange(paymentUrl);
   }, [paymentUrl]);
 
-  useEffect(function () {
+  async function handleCopyLink() {
     if (!paymentUrl) return;
-    const timer = setTimeout(function () {
-      window.location.assign(paymentUrl);
-    }, 300);
-    return function () { clearTimeout(timer); };
-  }, [paymentUrl]);
-
-  function handleLanjutPembayaran() {
-    if (paymentUrl) {
-      window.location.assign(paymentUrl);
+    try {
+      // Coba pakai clipboard API dulu
+      await navigator.clipboard.writeText(paymentUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch (err) {
+      // Fallback khusus untuk mode Captive Portal / In-App Browser yang memblokir clipboard
+      const input = document.getElementById("url-input") as HTMLInputElement;
+      if (input) {
+        input.select();
+        document.execCommand("copy");
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2500);
+      }
     }
   }
 
@@ -120,32 +126,68 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
       {paymentUrl ? (
         <div className="rounded-xl p-6 text-center" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
           <p className="text-sm mb-4" style={{ color: "var(--color-ink-muted)" }}>
-            Transaksi berhasil dibuat. Kalau tidak otomatis pindah, tekan tombol di bawah:
+            Transaksi berhasil dibuat. Silakan klik tombol di bawah ini:
           </p>
-          <button
-            type="button"
-            onClick={handleLanjutPembayaran}
-            onTouchEnd={function (e) { e.preventDefault(); handleLanjutPembayaran(); }}
-            className="w-full font-medium text-white"
+          
+          {/* PENTING: Jangan pakai target="_blank" di sini, Captive Portal iOS tidak mendukung tab baru */}
+          <a
+            href={paymentUrl}
+            className="w-full font-medium text-white flex items-center justify-center"
             style={{
-              display: "block",
+              display: "flex",
               background: "var(--color-accent)",
               border: "none",
               borderRadius: 10,
               padding: "15px 0",
               fontSize: 15,
-              cursor: "pointer",
-              WebkitTapHighlightColor: "rgba(0,0,0,0.15)",
-              touchAction: "manipulation",
+              textDecoration: "none",
+              WebkitTapHighlightColor: "rgba(0,0,0,0)",
             }}
           >
             Lanjut ke Pembayaran
-          </button>
-          <p className="text-xs mt-4" style={{ color: "var(--color-ink-muted)", wordBreak: "break-all" }}>
-            Kalau tombol tidak bisa ditekan, tekan-tahan link ini lalu pilih "Buka" atau salin ke browser:
-            <br />
-            <span style={{ userSelect: "all", color: "var(--color-accent)" }}>{paymentUrl}</span>
-          </p>
+          </a>
+
+          {/* Fallback Manual Copy yang ramah iOS Captive Portal */}
+          <div className="mt-5 text-left">
+            <p className="text-xs mb-2" style={{ color: "var(--color-ink-muted)" }}>
+              Atau salin link di bawah dan buka di browser (Safari/Chrome):
+            </p>
+            <div className="flex gap-2 items-center">
+              <input
+                id="url-input"
+                type="text"
+                readOnly
+                value={paymentUrl}
+                onClick={(e) => {
+                  const target = e.target as HTMLInputElement;
+                  target.focus();
+                  target.select();
+                }}
+                className="w-full p-3 rounded-lg text-xs"
+                style={{
+                  background: "var(--color-bg)",
+                  border: "1px solid var(--color-border)",
+                  color: "var(--color-accent)",
+                  outline: "none",
+                  WebkitUserSelect: "all",
+                  userSelect: "all"
+                }}
+              />
+              <button
+                onClick={handleCopyLink}
+                className="flex items-center justify-center rounded-lg text-white transition-colors"
+                style={{
+                  background: copied ? "#10B981" : "var(--color-sidebar)",
+                  border: "none",
+                  padding: "0 16px",
+                  height: "42px",
+                  cursor: "pointer",
+                }}
+              >
+                {copied ? <CheckCircle2 size={18} /> : <Copy size={18} />}
+              </button>
+            </div>
+          </div>
         </div>
       ) : loading ? (
         <p className="text-center" style={{ color: "var(--color-ink-muted)" }}>Memuat paket...</p>
@@ -187,12 +229,6 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
 
           <button
             onClick={handleBeli}
-            onTouchEnd={function (e) { 
-              if (!processing) {
-                e.preventDefault(); 
-                handleBeli(); 
-              }
-            }}
             disabled={processing}
             className="w-full font-medium text-white"
             style={{
