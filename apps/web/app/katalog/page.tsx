@@ -41,16 +41,31 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
   const [errorMsg, setErrorMsg] = useState("");
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  
+  // State khusus untuk menangkap log error di layar
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+
+  const addLog = (message: string) => {
+    const time = new Date().toLocaleTimeString("id-ID", { hour12: false });
+    setDebugLogs((prev) => [`[${time}] ${message}`, ...prev]);
+  };
 
   useEffect(function () {
     async function load() {
-      const result = await supabase
-        .from("paket_voucher")
-        .select("id, nama, harga, durasi_menit")
-        .order("harga");
-      setPaketList(result.data || []);
-      if (result.data && result.data.length > 0) setSelectedPaket(result.data[0].id);
-      setLoading(false);
+      addLog("Memuat paket voucher dari database...");
+      try {
+        const result = await supabase
+          .from("paket_voucher")
+          .select("id, nama, harga, durasi_menit")
+          .order("harga");
+        setPaketList(result.data || []);
+        if (result.data && result.data.length > 0) setSelectedPaket(result.data[0].id);
+        addLog("Berhasil memuat paket.");
+      } catch (err: any) {
+        addLog(`Error load database: ${err.message}`);
+      } finally {
+        setLoading(false);
+      }
     }
     load();
   }, []);
@@ -62,30 +77,64 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
   async function handleCopyLink() {
     if (!paymentUrl) return;
     try {
+      addLog("Mencoba copy link via Clipboard API...");
       await navigator.clipboard.writeText(paymentUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
-    } catch (err) {
-      const input = document.getElementById("url-input") as HTMLInputElement;
-      if (input) {
-        input.select();
-        document.execCommand("copy");
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2500);
+      addLog("Berhasil disalin via Clipboard API.");
+    } catch (err: any) {
+      addLog(`Clipboard API gagal: ${err.message}. Pakai fallback...`);
+      try {
+        const input = document.getElementById("url-input") as HTMLInputElement;
+        if (input) {
+          input.select();
+          document.execCommand("copy");
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2500);
+          addLog("Berhasil disalin via Fallback execCommand.");
+        }
+      } catch (err2: any) {
+        addLog(`Fallback copy gagal: ${err2.message}`);
       }
+    }
+  }
+
+  function handleManualRedirect() {
+    addLog("Tombol 'Lanjut ke Pembayaran' ditekan.");
+    if (!paymentUrl) {
+      addLog("URL tidak tersedia.");
+      return;
+    }
+    try {
+      addLog("Mengeksekusi: window.location.href = paymentUrl");
+      window.location.href = paymentUrl;
+      
+      // Fallback jika href dicekal senyap
+      setTimeout(() => {
+        addLog("window.location.href belum berpindah. Mencoba window.location.assign...");
+        window.location.assign(paymentUrl);
+      }, 1000);
+    } catch (err: any) {
+      addLog(`CRITICAL ERROR saat redirect: ${err.message}`);
     }
   }
 
   async function handleBeli() {
     setErrorMsg("");
+    addLog("Memulai proses pembelian...");
+    
     if (!selectedPaket || !noHp) {
-      setErrorMsg("Pilih paket dan isi nomor HP dulu");
+      const msg = "Pilih paket dan isi nomor HP dulu";
+      setErrorMsg(msg);
+      addLog(msg);
       return;
     }
     setProcessing(true);
     const controller = new AbortController();
     const timeoutId = setTimeout(function () { controller.abort(); }, 25000);
+    
     try {
+      addLog("Mengirim request ke /api/checkout/voucher...");
       const res = await fetch("/api/checkout/voucher", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -93,6 +142,8 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
+      
+      addLog(`Response status: ${res.status}`);
       const json = await res.json();
       
       if (!res.ok || !json.paymentUrl) {
@@ -100,17 +151,21 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
       }
       
       setPaymentUrl(json.paymentUrl);
+      addLog(`Mendapat URL: ${json.paymentUrl}`);
       
-      // EKSEKUSI REDIRECT LANGSUNG (Bypass iOS restriction)
+      addLog("Mencoba Auto-Redirect (Bypass iOS)...");
       window.location.href = json.paymentUrl;
       
       setProcessing(false);
-    } catch (err) {
+    } catch (err: any) {
       clearTimeout(timeoutId);
-      if ((err as Error).name === "AbortError") {
-        setErrorMsg("Koneksi lambat, server tidak merespons dalam 25 detik. Coba lagi.");
+      if (err.name === "AbortError") {
+        const msg = "Koneksi lambat, server tidak merespons dalam 25 detik.";
+        setErrorMsg(msg);
+        addLog(msg);
       } else {
-        setErrorMsg((err as Error).message);
+        setErrorMsg(err.message);
+        addLog(`Error Fetch: ${err.message}`);
       }
       setProcessing(false);
     }
@@ -127,6 +182,25 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
         </p>
       </div>
 
+      {/* TAMPILAN LOG DEBUG UNTUK SCREENSHOT */}
+      <div className="mb-4 p-3 rounded-lg text-left" style={{ background: "#1f2937", border: "1px solid #374151" }}>
+        <p className="text-xs font-bold mb-2 text-white flex justify-between items-center">
+          <span>Log Debug Sistem:</span>
+          <button onClick={() => setDebugLogs([])} style={{ color: "#ef4444", background: "none", border: "none", fontSize: "10px" }}>Clear</button>
+        </p>
+        <div style={{ maxHeight: "120px", overflowY: "auto", fontSize: "10px", color: "#10b981", fontFamily: "monospace" }}>
+          {debugLogs.length === 0 ? (
+            <span style={{ color: "#6b7280" }}>Belum ada log...</span>
+          ) : (
+            debugLogs.map((log, i) => (
+              <div key={i} style={{ borderBottom: "1px solid #374151", paddingBottom: "2px", marginBottom: "2px" }}>
+                {log}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
       {paymentUrl ? (
         <div className="rounded-xl p-6 text-center" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
           <p className="text-sm mb-4" style={{ color: "var(--color-ink-muted)" }}>
@@ -134,7 +208,12 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
           </p>
           
           <button
-            onClick={() => { window.location.href = paymentUrl; }}
+            onClick={handleManualRedirect}
+            onTouchEnd={(e) => {
+               // Mencegah delay tap di iOS
+               e.preventDefault(); 
+               handleManualRedirect();
+            }}
             className="w-full font-medium text-white flex items-center justify-center"
             style={{
               display: "flex",
@@ -146,6 +225,7 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
               textDecoration: "none",
               cursor: "pointer",
               WebkitTapHighlightColor: "rgba(0,0,0,0)",
+              touchAction: "manipulation"
             }}
           >
             Lanjut ke Pembayaran
@@ -232,6 +312,12 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
 
           <button
             onClick={handleBeli}
+            onTouchEnd={(e) => {
+              if (!processing) {
+                e.preventDefault();
+                handleBeli();
+              }
+            }}
             disabled={processing}
             className="w-full font-medium text-white"
             style={{
