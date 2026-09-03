@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import SignalIndicator from "@/components/SignalIndicator";
 import {
@@ -101,64 +101,89 @@ export default function DashboardHome() {
   });
   const [recentTikets, setRecentTikets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  async function loadStats() {
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const { count: pelangganCount } = await supabase
+      .from("pelanggan")
+      .select("*", { count: "exact", head: true });
+
+    const { count: tiketCount } = await supabase
+      .from("tiket_gangguan")
+      .select("*", { count: "exact", head: true })
+      .in("status", ["baru", "ditangani"]);
+
+    const { count: routerOfflineCount } = await supabase
+      .from("router")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "offline");
+
+    const { count: totalRouterCount } = await supabase
+      .from("router")
+      .select("*", { count: "exact", head: true });
+
+    const { data: voucherBulanIni } = await supabase
+      .from("transaksi_voucher")
+      .select("nominal_dibayar")
+      .eq("status", "lunas")
+      .gte("dibayar_at", startOfMonth.toISOString());
+
+    const { data: bulananBulanIni } = await supabase
+      .from("pembayaran_bulanan")
+      .select("nominal")
+      .eq("status", "lunas")
+      .gte("divalidasi_at", startOfMonth.toISOString());
+
+    const pendapatan =
+      (voucherBulanIni ?? []).reduce((sum, v) => sum + Number(v.nominal_dibayar), 0) +
+      (bulananBulanIni ?? []).reduce((sum, b) => sum + Number(b.nominal), 0);
+
+    const { data: tiketData } = await supabase
+      .from("tiket_gangguan")
+      .select("id, jenis, status, terdeteksi_at, router:router_id(nama), pelanggan:pelanggan_id(nama)")
+      .order("terdeteksi_at", { ascending: false })
+      .limit(5);
+
+    setStats({
+      totalPelanggan: pelangganCount ?? 0,
+      tiketTerbuka: tiketCount ?? 0,
+      routerOffline: routerOfflineCount ?? 0,
+      totalRouter: totalRouterCount ?? 0,
+      pendapatanBulanIni: pendapatan,
+    });
+    setRecentTikets(tiketData ?? []);
+    setLoading(false);
+    setLastUpdated(new Date());
+  }
+
+  function scheduleReload() {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(function () {
+      loadStats();
+    }, 1000);
+  }
 
   useEffect(() => {
-    async function loadStats() {
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      startOfMonth.setHours(0, 0, 0, 0);
-
-      const { count: pelangganCount } = await supabase
-        .from("pelanggan")
-        .select("*", { count: "exact", head: true });
-
-      const { count: tiketCount } = await supabase
-        .from("tiket_gangguan")
-        .select("*", { count: "exact", head: true })
-        .in("status", ["baru", "ditangani"]);
-
-      const { count: routerOfflineCount } = await supabase
-        .from("router")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "offline");
-
-      const { count: totalRouterCount } = await supabase
-        .from("router")
-        .select("*", { count: "exact", head: true });
-
-      const { data: voucherBulanIni } = await supabase
-        .from("transaksi_voucher")
-        .select("nominal_dibayar")
-        .eq("status", "lunas")
-        .gte("dibayar_at", startOfMonth.toISOString());
-
-      const { data: bulananBulanIni } = await supabase
-        .from("pembayaran_bulanan")
-        .select("nominal")
-        .eq("status", "lunas")
-        .gte("divalidasi_at", startOfMonth.toISOString());
-
-      const pendapatan =
-        (voucherBulanIni ?? []).reduce((sum, v) => sum + Number(v.nominal_dibayar), 0) +
-        (bulananBulanIni ?? []).reduce((sum, b) => sum + Number(b.nominal), 0);
-
-      const { data: tiketData } = await supabase
-        .from("tiket_gangguan")
-        .select("id, jenis, status, terdeteksi_at, router:router_id(nama), pelanggan:pelanggan_id(nama)")
-        .order("terdeteksi_at", { ascending: false })
-        .limit(5);
-
-      setStats({
-        totalPelanggan: pelangganCount ?? 0,
-        tiketTerbuka: tiketCount ?? 0,
-        routerOffline: routerOfflineCount ?? 0,
-        totalRouter: totalRouterCount ?? 0,
-        pendapatanBulanIni: pendapatan,
-      });
-      setRecentTikets(tiketData ?? []);
-      setLoading(false);
-    }
     loadStats();
+
+    const channel = supabase
+      .channel("dashboard-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "pelanggan" }, scheduleReload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "tiket_gangguan" }, scheduleReload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "router" }, scheduleReload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "transaksi_voucher" }, scheduleReload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "pembayaran_bulanan" }, scheduleReload)
+      .subscribe();
+
+    return function () {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const statCards = [
@@ -195,16 +220,27 @@ export default function DashboardHome() {
 
   return (
     <div>
-      <div className="stagger-1 mb-8">
-        <h1 className="text-2xl font-semibold" style={{ fontFamily: "var(--font-display)" }}>
-          {getGreeting()}, {process.env.NEXT_PUBLIC_BUSINESS_NAME || "IONET+"}
-        </h1>
-        <p className="text-sm mt-1" style={{ color: "var(--color-ink-muted)" }}>
-          {formatTanggal()}
-        </p>
+      <div className="stagger-1 mb-8 flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h1 className="text-2xl font-semibold" style={{ fontFamily: "var(--font-display)" }}>
+            {getGreeting()}, {process.env.NEXT_PUBLIC_BUSINESS_NAME || "IONET+"}
+          </h1>
+          <p className="text-sm mt-1" style={{ color: "var(--color-ink-muted)" }}>
+            {formatTanggal()}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-xs" style={{ color: "var(--color-ink-muted)" }}>
+          <span className="live-dot" />
+          <span>Live</span>
+          {lastUpdated && (
+            <span>
+              &middot; diperbarui {lastUpdated.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+            </span>
+          )}
+        </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {statCards.map((card, i) => {
           const Icon = card.icon;
           return (
@@ -233,41 +269,45 @@ export default function DashboardHome() {
         })}
       </div>
 
-      <div className="grid gap-6" style={{ gridTemplateColumns: "1.4fr 1fr" }}>
-        <div className="stagger-4">
-          <h3 className="text-sm uppercase tracking-wide mb-3" style={{ color: "var(--color-ink-muted)" }}>
+      <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-6">
+        <div
+          className="stagger-4 rounded-xl p-5"
+          style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}
+        >
+          <h3 className="text-sm uppercase tracking-wide mb-4" style={{ color: "var(--color-ink-muted)" }}>
             Akses Cepat
           </h3>
-          <div className="flex flex-col gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             {menuGroups.map((group) => (
               <div key={group.label}>
-                <p className="text-xs font-medium mb-2" style={{ color: "var(--color-ink-muted)" }}>
-                  {group.label}
-                </p>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-1 h-3.5 rounded-full" style={{ background: "var(--color-accent)" }} />
+                  <p className="text-xs font-semibold" style={{ color: "var(--color-ink-muted)" }}>
+                    {group.label}
+                  </p>
+                </div>
+                <div className="flex flex-col gap-0.5">
                   {group.items.map((item: any) => {
                     const ItemIcon = item.icon;
                     return (
                       <Link
                         key={item.href}
                         href={item.href}
-                        className="flex items-center gap-2.5 p-3 rounded-lg text-sm transition-all hover:shadow-sm"
+                        className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-colors menu-row"
                         style={{
-                          background: item.highlight
-                            ? "linear-gradient(135deg, rgba(30,136,229,0.08), rgba(139,92,246,0.08))"
-                            : "var(--color-surface)",
-                          border: item.highlight ? "1px solid rgba(30,136,229,0.35)" : "1px solid var(--color-border)",
+                          background: item.highlight ? "rgba(30,136,229,0.06)" : "transparent",
                           position: "relative",
                         }}
                       >
                         <ItemIcon
-                          size={16}
+                          size={15}
                           color="var(--color-accent)"
                           strokeWidth={2}
+                          style={{ flexShrink: 0 }}
                           className={item.highlight ? "bot-icon-bounce" : ""}
                         />
-                        {item.label}
-                        {item.highlight && <span className="bot-badge-dot" />}
+                        <span style={{ lineHeight: 1.3 }}>{item.label}</span>
+                        {item.highlight && <span className="bot-badge-dot" style={{ marginLeft: "auto" }} />}
                       </Link>
                     );
                   })}
@@ -326,6 +366,27 @@ export default function DashboardHome() {
           </Link>
         </div>
       </div>
+
+      <style jsx>{`
+        .live-dot {
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          background: var(--color-signal-good);
+          box-shadow: 0 0 8px rgba(47, 174, 96, 0.7);
+          animation: liveDotPulse 1.6s ease-in-out infinite;
+        }
+        .menu-row:hover {
+          background: var(--color-bg) !important;
+        }
+        @keyframes liveDotPulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.4; transform: scale(0.8); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .live-dot { animation: none; }
+        }
+      `}</style>
     </div>
   );
 }
