@@ -35,6 +35,7 @@ function VoucherSection() {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   useEffect(function () {
     async function load() {
@@ -49,6 +50,17 @@ function VoucherSection() {
     load();
   }, []);
 
+  useEffect(function () {
+    if (!processing) {
+      setElapsedSeconds(0);
+      return;
+    }
+    const interval = setInterval(function () {
+      setElapsedSeconds(function (s) { return s + 1; });
+    }, 1000);
+    return function () { clearInterval(interval); };
+  }, [processing]);
+
   async function handleBeli() {
     setErrorMsg("");
     if (!selectedPaket || !noHp) {
@@ -57,7 +69,7 @@ function VoucherSection() {
     }
     setProcessing(true);
     const controller = new AbortController();
-    const timeoutId = setTimeout(function () { controller.abort(); }, 20000); // 20 detik max
+    const timeoutId = setTimeout(function () { controller.abort(); }, 20000);
     try {
       const res = await fetch("/api/checkout/voucher", {
         method: "POST",
@@ -80,6 +92,13 @@ function VoucherSection() {
       }
       setProcessing(false);
     }
+  }
+
+  var stageMessage = "Menyiapkan transaksi...";
+  if (elapsedSeconds >= 5 && elapsedSeconds < 12) {
+    stageMessage = "Menghubungkan ke gateway pembayaran...";
+  } else if (elapsedSeconds >= 12) {
+    stageMessage = "Agak lama dari biasanya, mohon tunggu sebentar lagi...";
   }
 
   return (
@@ -149,6 +168,85 @@ function VoucherSection() {
           </button>
         </div>
       )}
+
+      {processing && (
+        <div className="payment-overlay">
+          <div className="payment-overlay-card">
+            <div className="payment-wifi-icon">
+              <span className="payment-ring ring-1" />
+              <span className="payment-ring ring-2" />
+              <span className="payment-ring ring-3" />
+              <div className="payment-wifi-core">
+                <Wifi size={26} color="white" />
+              </div>
+            </div>
+            <h3 style={{ fontFamily: "var(--font-display)", fontSize: 17, color: "white", marginTop: 20, marginBottom: 6 }}>
+              Menghubungkan ke Pembayaran
+            </h3>
+            <p style={{ color: "#9CA3AF", fontSize: 13, textAlign: "center", padding: "0 24px", lineHeight: 1.6 }}>
+              {stageMessage}
+            </p>
+            <p style={{ color: "#6B7280", fontSize: 11, marginTop: 16 }}>
+              Jangan tutup atau kembali dari halaman ini
+            </p>
+          </div>
+
+          <style jsx>{`
+            .payment-overlay {
+              position: fixed;
+              inset: 0;
+              background: var(--color-sidebar);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              z-index: 200;
+            }
+            .payment-overlay-card {
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+            }
+            .payment-wifi-icon {
+              position: relative;
+              width: 90px;
+              height: 90px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            }
+            .payment-wifi-core {
+              position: relative;
+              z-index: 2;
+              width: 56px;
+              height: 56px;
+              border-radius: 50%;
+              background: var(--color-accent);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              box-shadow: 0 0 24px rgba(30, 136, 229, 0.6);
+            }
+            .payment-ring {
+              position: absolute;
+              border: 3px solid var(--color-accent);
+              border-radius: 50%;
+              opacity: 0;
+              animation: paymentPulse 2s ease-out infinite;
+            }
+            .ring-1 { width: 56px; height: 56px; animation-delay: 0s; }
+            .ring-2 { width: 56px; height: 56px; animation-delay: 0.5s; }
+            .ring-3 { width: 56px; height: 56px; animation-delay: 1s; }
+
+            @keyframes paymentPulse {
+              0% { transform: scale(1); opacity: 0.7; }
+              100% { transform: scale(2.2); opacity: 0; }
+            }
+            @media (prefers-reduced-motion: reduce) {
+              .payment-ring { animation: none; opacity: 0.3; }
+            }
+          `}</style>
+        </div>
+      )}
     </section>
   );
 }
@@ -177,8 +275,6 @@ export default function KatalogPage() {
     load();
   }, []);
 
-  // Langsung scroll ke bagian beli voucher pas halaman dibuka - ini pintu masuk utama
-  // buat user dari captive portal hotspot, jadi mereka gak perlu scroll manual lewatin hero/fitur
   useEffect(function () {
     var timer = setTimeout(function () {
       var el = document.getElementById("beli-voucher");
