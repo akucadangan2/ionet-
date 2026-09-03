@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import NetworkBackground from "@/components/NetworkBackground";
-import { Wifi, Zap, ShieldCheck, Clock, MapPin, Phone, Copy, Check } from "lucide-react";
+import { Wifi, Zap, ShieldCheck, Clock, MapPin, Phone } from "lucide-react";
 
 interface PaketBulanan {
   id: string;
@@ -36,10 +36,6 @@ function VoucherSection() {
   const [processing, setProcessing] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [qrImage, setQrImage] = useState<string | null>(null);
-  const [orderId, setOrderId] = useState<string | null>(null);
-  const [paidStatus, setPaidStatus] = useState<{ status: string; kodeVoucher?: string } | null>(null);
-  const [copied, setCopied] = useState(false);
 
   useEffect(function () {
     async function load() {
@@ -65,21 +61,6 @@ function VoucherSection() {
     return function () { clearInterval(interval); };
   }, [processing]);
 
-  useEffect(function () {
-    if (!orderId || paidStatus) return;
-    const interval = setInterval(function () {
-      fetch("/api/checkout/status?id=" + orderId)
-        .then(function (r) { return r.json(); })
-        .then(function (json) {
-          if (json.status === "lunas") {
-            setPaidStatus(json);
-          }
-        })
-        .catch(function () {});
-    }, 3000);
-    return function () { clearInterval(interval); };
-  }, [orderId, paidStatus]);
-
   async function handleBeli() {
     setErrorMsg("");
     if (!selectedPaket || !noHp) {
@@ -90,7 +71,7 @@ function VoucherSection() {
     const controller = new AbortController();
     const timeoutId = setTimeout(function () { controller.abort(); }, 25000);
     try {
-      const res = await fetch("/api/checkout/voucher-qris", {
+      const res = await fetch("/api/checkout/voucher", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ paketVoucherId: selectedPaket, noHpPembeli: noHp }),
@@ -98,12 +79,10 @@ function VoucherSection() {
       });
       clearTimeout(timeoutId);
       const json = await res.json();
-      if (!res.ok || !json.qrImage) {
-        throw new Error(json.message || "Gagal membuat QRIS");
+      if (!res.ok || !json.paymentUrl) {
+        throw new Error(json.message || "Gagal memproses pembayaran");
       }
-      setQrImage(json.qrImage);
-      setOrderId(json.orderId);
-      setProcessing(false);
+      window.location.href = json.paymentUrl;
     } catch (err) {
       clearTimeout(timeoutId);
       if ((err as Error).name === "AbortError") {
@@ -113,13 +92,6 @@ function VoucherSection() {
       }
       setProcessing(false);
     }
-  }
-
-  function handleCopy() {
-    if (!paidStatus?.kodeVoucher) return;
-    navigator.clipboard.writeText(paidStatus.kodeVoucher.split("/")[0]);
-    setCopied(true);
-    setTimeout(function () { setCopied(false); }, 2000);
   }
 
   var stageMessage = "Menyiapkan transaksi...";
@@ -136,43 +108,11 @@ function VoucherSection() {
           Butuh Internet Sementara?
         </h2>
         <p style={{ color: "var(--color-ink-muted)", lineHeight: 1.6, fontSize: 14 }}>
-          Beli voucher hotspot langsung dari sini, bayar pakai QRIS
+          Beli voucher hotspot langsung dari sini
         </p>
       </div>
 
-      {paidStatus ? (
-        <div className="rounded-xl p-6 text-center" style={{ background: "var(--color-surface)", border: "1px solid var(--color-signal-good)" }}>
-          <p className="text-sm mb-3" style={{ color: "var(--color-signal-good)" }}>✓ Pembayaran berhasil!</p>
-          <p style={{ fontSize: 11, color: "var(--color-ink-muted)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>
-            Kode Voucher
-          </p>
-          <p style={{ fontFamily: "var(--font-mono)", fontSize: 32, fontWeight: 700, letterSpacing: 3, marginBottom: 16 }}>
-            {paidStatus.kodeVoucher?.split("/")[0]}
-          </p>
-          <button
-            onClick={handleCopy}
-            className="w-full"
-            style={{
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-              padding: "12px 0", borderRadius: 8, border: "1px solid var(--color-border)",
-              background: copied ? "var(--color-signal-good)" : "var(--color-bg)",
-              color: copied ? "white" : "var(--color-ink)", fontSize: 14, fontWeight: 500,
-            }}
-          >
-            {copied ? <Check size={16} /> : <Copy size={16} />}
-            {copied ? "Kode Tersalin!" : "Salin Kode"}
-          </button>
-          <p style={{ fontSize: 12, color: "var(--color-ink-muted)", marginTop: 16, lineHeight: 1.6 }}>
-            Masukkan kode ini di kolom "Kode Voucher" pada halaman login WiFi
-          </p>
-        </div>
-      ) : qrImage ? (
-        <div className="rounded-xl p-6 text-center" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
-          <p className="text-sm mb-4" style={{ color: "var(--color-ink-muted)" }}>Scan QRIS ini untuk bayar</p>
-          <img src={qrImage} alt="QRIS" style={{ width: 220, height: 220, margin: "0 auto", display: "block" }} />
-          <p className="text-xs mt-4" style={{ color: "var(--color-ink-muted)" }}>Menunggu pembayaran, halaman ini akan update otomatis...</p>
-        </div>
-      ) : loading ? (
+      {loading ? (
         <p className="text-center" style={{ color: "var(--color-ink-muted)" }}>Memuat paket...</p>
       ) : (
         <div className="rounded-xl p-5" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
@@ -224,7 +164,7 @@ function VoucherSection() {
               opacity: processing ? 0.6 : 1,
             }}
           >
-            {processing ? "Memproses..." : "Bayar dengan QRIS"}
+            {processing ? "Memproses..." : "Bayar Sekarang"}
           </button>
         </div>
       )}
@@ -241,7 +181,7 @@ function VoucherSection() {
               </div>
             </div>
             <h3 style={{ fontFamily: "var(--font-display)", fontSize: 17, color: "white", marginTop: 20, marginBottom: 6 }}>
-              Menyiapkan QRIS
+              Menghubungkan ke Pembayaran
             </h3>
             <p style={{ color: "#9CA3AF", fontSize: 13, textAlign: "center", padding: "0 24px", lineHeight: 1.6 }}>
               {stageMessage}
