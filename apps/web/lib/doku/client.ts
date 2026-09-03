@@ -98,6 +98,7 @@ export async function createCheckout(params: CheckoutParams): Promise<CheckoutRe
       "Signature": signature,
     },
     body,
+    signal: AbortSignal.timeout(15000), // gagal cepat kalau DOKU lambat >15 detik, bukan gantung
   });
 
   const json = await res.json();

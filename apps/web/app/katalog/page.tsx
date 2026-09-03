@@ -56,19 +56,28 @@ function VoucherSection() {
       return;
     }
     setProcessing(true);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(function () { controller.abort(); }, 20000); // 20 detik max
     try {
       const res = await fetch("/api/checkout/voucher", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ paketVoucherId: selectedPaket, noHpPembeli: noHp }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
       const json = await res.json();
       if (!res.ok || !json.paymentUrl) {
         throw new Error(json.message || "Gagal memproses pembayaran");
       }
       window.location.href = json.paymentUrl;
     } catch (err) {
-      setErrorMsg((err as Error).message);
+      clearTimeout(timeoutId);
+      if ((err as Error).name === "AbortError") {
+        setErrorMsg("Koneksi lambat, server tidak merespons dalam 20 detik. Coba lagi.");
+      } else {
+        setErrorMsg((err as Error).message);
+      }
       setProcessing(false);
     }
   }

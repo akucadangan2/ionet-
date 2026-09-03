@@ -10,21 +10,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "Data belum lengkap" }, { status: 400 });
     }
 
-    const { data: lokasiDefault } = await supabase.from("lokasi").select("id").limit(1).single();
-    if (!lokasiDefault) {
+    // 2 query ini independen satu sama lain, jalanin bareng
+    const [lokasiResult, paketResult] = await Promise.all([
+      supabase.from("lokasi").select("id").limit(1).single(),
+      supabase.from("paket_voucher").select("id, nama, harga").eq("id", paketVoucherId).single(),
+    ]);
+
+    if (!lokasiResult.data) {
       return NextResponse.json({ message: "Lokasi belum tersedia" }, { status: 500 });
     }
-    const lokasiId = lokasiDefault.id;
-
-    const { data: paket, error: paketError } = await supabase
-      .from("paket_voucher")
-      .select("id, nama, harga")
-      .eq("id", paketVoucherId)
-      .single();
-
-    if (paketError || !paket) {
+    if (paketResult.error || !paketResult.data) {
       return NextResponse.json({ message: "Paket tidak ditemukan" }, { status: 404 });
     }
+    const lokasiId = lokasiResult.data.id;
+    const paket = paketResult.data;
 
     const { data: transaksi, error: insertError } = await supabase
       .from("transaksi_voucher")
@@ -54,6 +53,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ paymentUrl: checkoutResult.paymentUrl });
   } catch (err) {
-    return NextResponse.json({ message: (err as Error).message }, { status: 500 });
+    console.error("Error checkout voucher:", err);
+    return NextResponse.json({ message: (err as Error).message || "Gagal memproses pembayaran" }, { status: 500 });
   }
 }
