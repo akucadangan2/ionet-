@@ -5,40 +5,74 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import {
+  Users,
+  Wallet,
+  AlertTriangle,
+  Wifi,
+  Ticket,
+  CreditCard,
+  Package,
+  FileSpreadsheet,
+  Map,
+  Gauge,
+  Radio,
+  Server,
+  MapPin,
+  UserCog,
+  Zap,
+  Bot,
+  Bell,
+  Database,
+} from "lucide-react";
 
 const menuGroups = [
   {
     label: "Billing",
     items: [
-      { href: "/billing/voucher", label: "Voucher" },
-      { href: "/billing/langganan-bulanan", label: "Langganan Bulanan" },
-      { href: "/billing/paket", label: "Paket Harga" },
-      { href: "/billing/laporan-keuangan", label: "Laporan Keuangan" },
+      { href: "/billing/voucher", label: "Voucher", icon: Ticket },
+      { href: "/billing/voucher-massal", label: "Generate Voucher Massal", icon: Ticket },
+      { href: "/billing/hotspot-aktif", label: "Hotspot Aktif", icon: Wifi },
+      { href: "/billing/langganan-bulanan", label: "Langganan Bulanan", icon: CreditCard },
+      { href: "/billing/paket", label: "Paket Harga", icon: Package },
+      { href: "/billing/laporan-keuangan", label: "Laporan Keuangan", icon: FileSpreadsheet },
+      { href: "/billing/buku-kas", label: "Buku Kas", icon: Wallet },
     ],
   },
   {
     label: "Jaringan",
     items: [
-      { href: "/jaringan/peta", label: "Peta Jaringan" },
-      { href: "/jaringan/bandwidth", label: "Bandwidth" },
-      { href: "/jaringan/uplink-monitoring", label: "Monitoring Uplink" },
-      { href: "/jaringan/radius", label: "RADIUS" },
-      { href: "/jaringan/lokasi", label: "Lokasi" },
+      { href: "/jaringan/peta", label: "Peta Jaringan", icon: Map },
+      { href: "/jaringan/odc-odp", label: "Titik ODC/ODP", icon: MapPin },
+      { href: "/jaringan/bandwidth", label: "Bandwidth", icon: Gauge },
+      { href: "/jaringan/uplink-monitoring", label: "Monitoring Uplink", icon: Radio },
+      { href: "/jaringan/radius", label: "RADIUS", icon: Server },
+      { href: "/jaringan/rekap-uplink", label: "Rekap Uplink", icon: Gauge },
+      { href: "/jaringan/sinyal-olt", label: "Sinyal OLT", icon: Zap },
+      { href: "/jaringan/genieacs", label: "Kelola Modem", icon: Wifi },
+      { href: "/jaringan/genieacs-coverage", label: "Cakupan GenieACS", icon: Radio },
+      { href: "/jaringan/lokasi", label: "Lokasi", icon: MapPin },
     ],
   },
   {
     label: "Operasional",
     items: [
-      { href: "/pelanggan", label: "Data Pelanggan" },
-      { href: "/tiket", label: "Tiket Gangguan" },
-      { href: "/pengguna", label: "Pengguna" },
-      { href: "/backup", label: "Backup Lokal" },
+      { href: "/pelanggan", label: "Data Pelanggan", icon: Users },
+      { href: "/tiket", label: "Tiket Gangguan", icon: AlertTriangle },
+      { href: "/operasional/karyawan", label: "Data Karyawan", icon: Users },
+      { href: "/pengguna", label: "Pengguna", icon: UserCog },
+      { href: "/operasional/absensi", label: "Rekap Absensi", icon: AlertTriangle },
+      { href: "/operasional/kasbon", label: "Kasbon", icon: Wallet },
+      { href: "/operasional/payroll", label: "Payroll", icon: Wallet },
+      { href: "/operasional/komisi", label: "Komisi", icon: Wallet },
+      { href: "/backup", label: "Backup Lokal", icon: Database },
+      { href: "/operasional/asisten-hr", label: "Bot HR", icon: Bot, highlight: true },
     ],
   },
   {
     label: "Pengaturan",
     items: [
-      { href: "/pengaturan/notifikasi", label: "Notifikasi WA" },
+      { href: "/pengaturan/notifikasi", label: "Notifikasi WA", icon: Bell },
     ],
   },
 ];
@@ -129,22 +163,33 @@ export default function TopNav() {
 
                   {openGroup === group.label && (
                     <div
-                      className="absolute top-full left-0 mt-1 rounded-lg overflow-hidden z-50"
-                      style={{ background: "var(--color-sidebar)", border: "1px solid #1E2630", minWidth: 180 }}
+                      className="absolute top-full left-0 mt-1 rounded-lg overflow-y-auto z-50"
+                      style={{
+                        background: "var(--color-sidebar)",
+                        border: "1px solid #1E2630",
+                        minWidth: 220,
+                        maxHeight: 340,
+                      }}
                     >
-                      {group.items.map((item) => {
+                      {group.items.map((item: any) => {
                         const active = pathname.startsWith(item.href);
+                        const ItemIcon = item.icon;
                         return (
                           <Link
                             key={item.href}
                             href={item.href}
                             onClick={() => setOpenGroup(null)}
-                            className="block px-4 py-2 text-sm"
+                            className="flex items-center gap-2.5 px-4 py-2 text-sm"
                             style={{
                               color: active ? "var(--color-accent)" : "#D1D5DB",
-                              background: active ? "var(--color-sidebar-hover)" : "transparent",
+                              background: active
+                                ? "var(--color-sidebar-hover)"
+                                : item.highlight
+                                ? "rgba(30,136,229,0.06)"
+                                : "transparent",
                             }}
                           >
+                            <ItemIcon size={15} style={{ flexShrink: 0 }} />
                             {item.label}
                           </Link>
                         );
