@@ -187,6 +187,12 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
 
           <button
             onClick={handleBeli}
+            onTouchEnd={function (e) { 
+              if (!processing) {
+                e.preventDefault(); 
+                handleBeli(); 
+              }
+            }}
             disabled={processing}
             className="w-full font-medium text-white"
             style={{
@@ -197,6 +203,9 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
               fontSize: 15,
               minHeight: 50,
               opacity: processing ? 0.6 : 1,
+              cursor: "pointer",
+              touchAction: "manipulation",
+              WebkitTapHighlightColor: "rgba(0,0,0,0.15)",
             }}
           >
             {processing ? "Memproses..." : "Bayar dengan QRIS"}
