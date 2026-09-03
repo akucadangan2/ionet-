@@ -29,7 +29,6 @@ interface CheckoutResult {
   expiredAt: string;
 }
 
-// Generate signature sesuai spesifikasi DOKU (HMAC-SHA256 berbasis request body + timestamp)
 function generateSignature(
   clientId: string,
   requestId: string,
@@ -98,7 +97,7 @@ export async function createCheckout(params: CheckoutParams): Promise<CheckoutRe
       "Signature": signature,
     },
     body,
-    signal: AbortSignal.timeout(15000), // gagal cepat kalau DOKU lambat >15 detik, bukan gantung
+    signal: AbortSignal.timeout(15000),
   });
 
   const json = await res.json();
@@ -114,7 +113,6 @@ export async function createCheckout(params: CheckoutParams): Promise<CheckoutRe
   };
 }
 
-// Dipanggil dari poller (fallback kalau webhook DOKU tidak fire, lesson dari Maesa Mart)
 export async function checkStatus(orderId: string) {
   const requestTarget = `/orders/v1/status/${orderId}`;
   const requestId = crypto.randomUUID();
@@ -144,6 +142,8 @@ export async function checkStatus(orderId: string) {
 
 // ===== DOKU Direct API (SNAP) - QRIS Dinamis, kita bangun sendiri tampilannya =====
 const DOKU_PRIVATE_KEY = process.env.DOKU_PRIVATE_KEY!;
+const DOKU_MERCHANT_ID = process.env.DOKU_MERCHANT_ID || "ID1026555054018";
+const DOKU_MERCHANT_POSTAL_CODE = process.env.DOKU_MERCHANT_POSTAL_CODE || "95371";
 
 function toIsoStringNoMs(date: Date): string {
   return date.toISOString().split(".")[0] + "Z";
@@ -201,7 +201,7 @@ async function getSnapAccessToken(): Promise<{ token: string; debug: SnapDebugIn
 export async function generateDynamicQris(
   orderId: string,
   amount: number
-): Promise<{ qrString: string; expiredAt: string; debugSteps: SnapDebugInfo[] }> {
+): Promise<{ qrString: string; expiredAt: string; referenceNo: string; debugSteps: SnapDebugInfo[] }> {
   const debugSteps: SnapDebugInfo[] = [];
 
   const { token: accessToken, debug: tokenDebug } = await getSnapAccessToken();
@@ -213,8 +213,12 @@ export async function generateDynamicQris(
   const body = {
     partnerReferenceNo: orderId,
     amount: { value: amount.toFixed(2), currency: "IDR" },
-    merchantId: "ID1026555054018",
+    merchantId: DOKU_MERCHANT_ID,
     terminalId: "A01",
+    additionalInfo: {
+      postalCode: DOKU_MERCHANT_POSTAL_CODE,
+      feeType: "1",
+    },
   };
   const bodyStr = JSON.stringify(body);
 
@@ -233,7 +237,7 @@ export async function generateDynamicQris(
     "CHANNEL-ID": "95221",
   };
 
-  const res = await fetch(url, { method: "POST", headers, body: bodyStr });
+  const res = await fetch(url, { method: "POST", headers, body: bodyStr, signal: AbortSignal.timeout(15000) });
   const responseText = await res.text();
 
   const genDebug: SnapDebugInfo = {
@@ -258,7 +262,47 @@ export async function generateDynamicQris(
   const json = JSON.parse(responseText);
   return {
     qrString: json.qrContent,
-    expiredAt: json.validityPeriod,
+    expiredAt: json.additionalInfo?.validityPeriod || "",
+    referenceNo: json.referenceNo,
     debugSteps,
+  };
+}
+
+export async function queryQris(orderId: string, referenceNo: string) {
+  const { token: accessToken } = await getSnapAccessToken();
+  const requestTarget = "/snap-adapter/b2b/v1.0/qr/qr-mpm-query";
+  const timestamp = toIsoStringNoMs(new Date());
+
+  const body = {
+    originalReferenceNo: referenceNo,
+    originalPartnerReferenceNo: orderId,
+    serviceCode: "47",
+    merchantId: DOKU_MERCHANT_ID,
+  };
+  const bodyStr = JSON.stringify(body);
+
+  const bodyHash = crypto.createHash("sha256").update(bodyStr).digest("hex").toLowerCase();
+  const stringToSign = `POST:${requestTarget}:${accessToken}:${bodyHash}:${timestamp}`;
+  const signature = crypto.createHmac("sha512", DOKU_SECRET_KEY).update(stringToSign).digest("base64");
+
+  const res = await fetch(`${DOKU_BASE_URL}${requestTarget}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${accessToken}`,
+      "X-PARTNER-ID": DOKU_CLIENT_ID,
+      "X-EXTERNAL-ID": orderId,
+      "X-TIMESTAMP": timestamp,
+      "CHANNEL-ID": "95221",
+      "X-SIGNATURE": signature,
+    },
+    body: bodyStr,
+    signal: AbortSignal.timeout(10000),
+  });
+
+  const json = await res.json();
+  return {
+    status: json.latestTransactionStatus,
+    raw: json,
   };
 }
