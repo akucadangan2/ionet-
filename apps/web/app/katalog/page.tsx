@@ -41,17 +41,9 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
   const [errorMsg, setErrorMsg] = useState("");
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  
-  const [debugLogs, setDebugLogs] = useState<string[]>([]);
-
-  const addLog = (message: string) => {
-    const time = new Date().toLocaleTimeString("id-ID", { hour12: false });
-    setDebugLogs((prev) => [`[${time}] ${message}`, ...prev]);
-  };
 
   useEffect(function () {
     async function load() {
-      addLog("Memuat paket...");
       try {
         const result = await supabase
           .from("paket_voucher")
@@ -59,9 +51,8 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
           .order("harga");
         setPaketList(result.data || []);
         if (result.data && result.data.length > 0) setSelectedPaket(result.data[0].id);
-        addLog("Sukses muat paket.");
       } catch (err: any) {
-        addLog(`Error DB: ${err.message}`);
+        console.error("Error DB:", err.message);
       } finally {
         setLoading(false);
       }
@@ -79,7 +70,6 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
       await navigator.clipboard.writeText(paymentUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
-      addLog("Copy API sukses.");
     } catch (err: any) {
       try {
         const input = document.getElementById("url-input") as HTMLInputElement;
@@ -88,17 +78,15 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
           document.execCommand("copy");
           setCopied(true);
           setTimeout(() => setCopied(false), 2500);
-          addLog("Copy fallback sukses.");
         }
       } catch (err2: any) {
-        addLog(`Copy gagal: ${err2.message}`);
+        console.error("Copy gagal:", err2.message);
       }
     }
   }
 
   async function handleBeli() {
     setErrorMsg("");
-    addLog("Mulai Beli...");
     
     if (!selectedPaket || !noHp) {
       setErrorMsg("Pilih paket dan isi nomor HP dulu");
@@ -109,7 +97,6 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
     const timeoutId = setTimeout(function () { controller.abort(); }, 25000);
     
     try {
-      addLog("Fetch API Doku...");
       const res = await fetch("/api/checkout/voucher", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -125,10 +112,8 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
       }
       
       setPaymentUrl(json.paymentUrl);
-      addLog("URL Doku didapat.");
       
-      // Trik Auto-Redirect bypass iOS Captive Portal dengan klik elemen virtual
-      addLog("Mencoba DOM Click Bypass...");
+      // Trik Auto-Redirect bypass iOS Captive Portal
       const link = document.createElement('a');
       link.href = json.paymentUrl;
       document.body.appendChild(link);
@@ -140,10 +125,8 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
       clearTimeout(timeoutId);
       if (err.name === "AbortError") {
         setErrorMsg("Koneksi lambat, coba lagi.");
-        addLog("Timeout API");
       } else {
         setErrorMsg(err.message);
-        addLog(`Error: ${err.message}`);
       }
       setProcessing(false);
     }
@@ -160,33 +143,15 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
         </p>
       </div>
 
-      <div className="mb-4 p-3 rounded-lg text-left" style={{ background: "#1f2937", border: "1px solid #374151" }}>
-        <p className="text-xs font-bold mb-2 text-white flex justify-between items-center">
-          <span>Log Debug Sistem:</span>
-          <button onClick={() => setDebugLogs([])} style={{ color: "#ef4444", background: "none", border: "none", fontSize: "10px" }}>Clear</button>
-        </p>
-        <div style={{ maxHeight: "90px", overflowY: "auto", fontSize: "10px", color: "#10b981", fontFamily: "monospace" }}>
-          {debugLogs.length === 0 ? (
-            <span style={{ color: "#6b7280" }}>Standby...</span>
-          ) : (
-            debugLogs.map((log, i) => (
-              <div key={i} style={{ borderBottom: "1px solid #374151", paddingBottom: "2px", marginBottom: "2px" }}>{log}</div>
-            ))
-          )}
-        </div>
-      </div>
-
       {paymentUrl ? (
         <div className="rounded-xl p-6 text-center" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
           <p className="text-sm mb-4" style={{ color: "var(--color-ink-muted)" }}>
             Transaksi berhasil. Jika tidak pindah otomatis, ketuk tombol di bawah:
           </p>
           
-          {/* PURE HTML LINK - PALING AMAN UNTUK IOS CAPTIVE PORTAL */}
           <a
             href={paymentUrl}
             className="w-full font-medium text-white flex items-center justify-center"
-            onClick={() => addLog("Tombol Link Ditekan Manual")}
             style={{
               display: "flex",
               background: "var(--color-accent)",
