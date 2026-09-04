@@ -5,7 +5,6 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase/client";
 import dynamic from "next/dynamic";
 
-// Import komponen LocationPicker secara dinamis untuk menghindari masalah SSR (Server-Side Rendering)
 const LocationPicker = dynamic(() => import("@/components/LocationPicker"), { ssr: false });
 
 interface Pelanggan {
@@ -20,6 +19,8 @@ interface Pelanggan {
   paket_bulanan_id: string | null;
   lokasi_id: string | null;
   status: string;
+  tanggal_jatuh_tempo: string | null;
+  disable_otomatis: boolean | null;
   paket_bulanan?: { nama: string } | null;
   lokasi?: { nama: string } | null;
 }
@@ -58,6 +59,8 @@ export default function PelangganPage() {
   const [search, setSearch] = useState("");
   const [importing, setImporting] = useState(false);
   const [routerList, setRouterList] = useState<{ id: string; nama: string }[]>([]);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [bulkProcessing, setBulkProcessing] = useState(false);
 
   const inputStyle = { border: "1px solid #ccc", borderRadius: 4, padding: "6px 12px", width: "100%", boxSizing: "border-box" as const };
 
@@ -74,7 +77,7 @@ export default function PelangganPage() {
       .from("lokasi")
       .select("id, nama")
       .order("nama");
-      
+
     const { data: paketData } = await supabase
       .from("paket_bulanan")
       .select("id, nama, harga_per_bulan")
@@ -173,11 +176,72 @@ export default function PelangganPage() {
     loadData();
   }
 
+  async function handleToggleAutoDisable(pelangganId: string, current: boolean | null) {
+    setTogglingId(pelangganId);
+    try {
+      const res = await fetch("/api/billing/toggle-auto-disable", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pelangganIds: [pelangganId], disableOtomatis: !current }),
+      });
+      if (!res.ok) {
+        const json = await res.json();
+        alert(`Gagal update: ${json.message}`);
+      } else {
+        setPelangganList(function (prev) {
+          return prev.map(function (p) {
+            return p.id === pelangganId ? { ...p, disable_otomatis: !current } : p;
+          });
+        });
+      }
+    } finally {
+      setTogglingId(null);
+    }
+  }
+
+  async function handleBulkAutoDisable(enable: boolean) {
+    const targetIds = pelangganList
+      .filter(function (p) { return p.tipe_langganan === "pppoe_bulanan"; })
+      .map(function (p) { return p.id; });
+
+    if (targetIds.length === 0) {
+      alert("Tidak ada pelanggan PPPoE Bulanan");
+      return;
+    }
+
+    const konfirmasi = window.confirm(
+      enable
+        ? `Aktifkan Auto-Disable untuk ${targetIds.length} pelanggan PPPoE Bulanan? Modem mereka akan otomatis dimatikan kalau lewat jatuh tempo.`
+        : `Matikan Auto-Disable untuk ${targetIds.length} pelanggan PPPoE Bulanan? Modem mereka TIDAK akan otomatis dimatikan meski lewat jatuh tempo.`
+    );
+    if (!konfirmasi) return;
+
+    setBulkProcessing(true);
+    try {
+      const res = await fetch("/api/billing/toggle-auto-disable", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pelangganIds: targetIds, disableOtomatis: enable }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        alert(`Gagal update: ${json.message}`);
+      } else {
+        alert(json.message);
+        loadData();
+      }
+    } finally {
+      setBulkProcessing(false);
+    }
+  }
+
   const filteredList = pelangganList.filter(
     (p) =>
       p.nama.toLowerCase().includes(search.toLowerCase()) ||
       (p.no_hp && p.no_hp.includes(search))
   );
+
+  const jumlahPppoe = pelangganList.filter(function (p) { return p.tipe_langganan === "pppoe_bulanan"; }).length;
 
   if (loading) return <p>Memuat...</p>;
 
@@ -185,25 +249,67 @@ export default function PelangganPage() {
     <div>
       <h1>Data Pelanggan</h1>
 
-      <div style={{ marginBottom: 10, display: "flex", alignItems: "center" }}>
+      <div style={{ marginBottom: 10, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
         <input
           placeholder="Cari nama/no HP..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 4 }}
         />
-        <button onClick={openTambahForm} className="px-4 py-2 rounded-lg text-sm font-medium text-white" style={{ background: "var(--color-accent)", marginLeft: 10 }}>
+        <button onClick={openTambahForm} className="px-4 py-2 rounded-lg text-sm font-medium text-white" style={{ background: "var(--color-accent)" }}>
           + Tambah Pelanggan
         </button>
         <button
           onClick={handleImportMikrotik}
           disabled={importing}
-          className="px-4 py-2 rounded-lg text-sm font-medium ml-2"
+          className="px-4 py-2 rounded-lg text-sm font-medium"
           style={{ border: "1px solid var(--color-accent)", color: "var(--color-accent)" }}
         >
           {importing ? "Mengimpor..." : "Import dari Mikrotik"}
         </button>
       </div>
+
+      {jumlahPppoe > 0 && (
+        <div
+          style={{
+            marginBottom: 15,
+            padding: "12px 16px",
+            borderRadius: 8,
+            background: "var(--color-surface)",
+            border: "1px solid var(--color-border)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 10,
+          }}
+        >
+          <div>
+            <p style={{ fontSize: 14, fontWeight: 500, marginBottom: 2 }}>Auto-Disable Modem</p>
+            <p style={{ fontSize: 12, color: "var(--color-ink-muted)" }}>
+              Matikan otomatis internet pelanggan PPPoE Bulanan yang lewat jatuh tempo (dicek tiap hari)
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => handleBulkAutoDisable(true)}
+              disabled={bulkProcessing}
+              className="px-3 py-1.5 rounded text-sm text-white"
+              style={{ background: "var(--color-signal-good)", opacity: bulkProcessing ? 0.6 : 1 }}
+            >
+              Aktifkan Semua
+            </button>
+            <button
+              onClick={() => handleBulkAutoDisable(false)}
+              disabled={bulkProcessing}
+              className="px-3 py-1.5 rounded text-sm"
+              style={{ border: "1px solid var(--color-border)", opacity: bulkProcessing ? 0.6 : 1 }}
+            >
+              Matikan Semua
+            </button>
+          </div>
+        </div>
+      )}
 
       {showForm && (
         <div style={{ border: "1px solid #ccc", padding: 15, marginBottom: 15, borderRadius: 8, background: "#f9f9f9" }}>
@@ -223,7 +329,7 @@ export default function PelangganPage() {
               style={inputStyle}
             />
           </div>
-          
+
           <div style={{ marginBottom: 10 }}>
             <input
               placeholder="Alamat"
@@ -233,7 +339,6 @@ export default function PelangganPage() {
             />
           </div>
 
-          {/* Location Picker Terintegrasi */}
           <div style={{ marginBottom: 12 }}>
             <label className="text-xs block mb-1" style={{ color: "var(--color-ink-muted)", fontSize: 12 }}>
               Lokasi Titik (GPS)
@@ -327,6 +432,8 @@ export default function PelangganPage() {
             <th style={{ padding: 8 }}>Tipe</th>
             <th style={{ padding: 8 }}>Paket/Username</th>
             <th style={{ padding: 8 }}>Status</th>
+            <th style={{ padding: 8 }}>Jatuh Tempo</th>
+            <th style={{ padding: 8 }}>Auto-Disable</th>
             <th style={{ padding: 8 }}>GPS</th>
             <th style={{ padding: 8 }}>Aksi</th>
           </tr>
@@ -345,8 +452,36 @@ export default function PelangganPage() {
               </td>
               <td style={{ padding: 8 }}>{p.status}</td>
               <td style={{ padding: 8 }}>
+                {p.tipe_langganan === "pppoe_bulanan" && p.tanggal_jatuh_tempo
+                  ? new Date(p.tanggal_jatuh_tempo).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })
+                  : "-"}
+              </td>
+              <td style={{ padding: 8 }}>
+                {p.tipe_langganan === "pppoe_bulanan" ? (
+                  <button
+                    onClick={() => handleToggleAutoDisable(p.id, p.disable_otomatis)}
+                    disabled={togglingId === p.id}
+                    style={{
+                      padding: "4px 10px",
+                      borderRadius: 12,
+                      border: "none",
+                      fontSize: 12,
+                      fontWeight: 500,
+                      cursor: "pointer",
+                      background: p.disable_otomatis ? "#DCF5E4" : "#F0F0F0",
+                      color: p.disable_otomatis ? "#1D8348" : "#666",
+                      opacity: togglingId === p.id ? 0.6 : 1,
+                    }}
+                  >
+                    {p.disable_otomatis ? "ON" : "OFF"}
+                  </button>
+                ) : (
+                  "-"
+                )}
+              </td>
+              <td style={{ padding: 8 }}>
                 {p.latitude && p.longitude ? (
-                  <a
+                  <a // <--- PERBAIKAN DI SINI, SEBELUMNYA TAG <a> HILANG
                     href={`https://www.google.com/maps?q=${p.latitude},${p.longitude}`}
                     target="_blank"
                     rel="noopener noreferrer"
