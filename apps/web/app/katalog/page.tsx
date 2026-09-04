@@ -40,7 +40,6 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
   const [processing, setProcessing] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
 
   useEffect(function () {
     async function load() {
@@ -63,27 +62,6 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
   useEffect(function () {
     onPaymentUrlChange(paymentUrl);
   }, [paymentUrl]);
-
-  async function handleCopyLink() {
-    if (!paymentUrl) return;
-    try {
-      await navigator.clipboard.writeText(paymentUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    } catch (err: any) {
-      try {
-        const input = document.getElementById("url-input") as HTMLInputElement;
-        if (input) {
-          input.select();
-          document.execCommand("copy");
-          setCopied(true);
-          setTimeout(() => setCopied(false), 2500);
-        }
-      } catch (err2: any) {
-        console.error("Copy gagal:", err2.message);
-      }
-    }
-  }
 
   async function handleBeli() {
     setErrorMsg("");
@@ -115,10 +93,21 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
       setPaymentUrl(json.paymentUrl);
       setProcessing(false);
       
-      // JEDA 800ms: Memastikan React mengganti layar lama sebelum iOS nge-freeze
-      setTimeout(() => {
-        window.location.assign(json.paymentUrl);
-      }, 800);
+      // --- PEMISAH LOGIKA ENVIRONMENT (CAPTIVE PORTAL VS REGULER) ---
+      const ua = window.navigator.userAgent.toLowerCase();
+      const isIOS = /iphone|ipad|ipod/.test(ua);
+      const isCaptivePortal = /captivenetworksupport|wispr/i.test(ua);
+      const isSafariWebView = isIOS && !/safari/.test(ua); // Ciri khas browser pop-up Apple
+
+      if (!isCaptivePortal && !isSafariWebView) {
+        // Eksekusi untuk Android, Windows, dan Browser Murni (Safari/Chrome Luar)
+        setTimeout(() => {
+          window.location.href = json.paymentUrl;
+        }, 800);
+      }
+      // Jika isCaptivePortal / isSafariWebView (Pop-up MikroTik iOS), 
+      // sistem tidak melakukan window.location.href untuk mencegah layar Freeze.
+      // Pengguna diarahkan untuk klik tombol secara manual.
       
     } catch (err: any) {
       clearTimeout(timeoutId);
@@ -145,12 +134,16 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
       {paymentUrl ? (
         <div className="rounded-xl p-6 text-center" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
           <p className="text-sm mb-4" style={{ color: "var(--color-ink-muted)" }}>
-            Transaksi berhasil. Jika tidak otomatis pindah, ketuk tombol di bawah:
+            Transaksi berhasil. Sistem sedang mengalihkan...
+            <br /><br />
+            <span style={{ fontSize: 13, color: "var(--color-signal-good)" }}>
+              (Khusus pengguna Apple/iOS: Ketuk tombol di bawah secara manual jika layar belum berpindah).
+            </span>
           </p>
           
           <a
             href={paymentUrl}
-            className="w-full font-medium text-white flex items-center justify-center"
+            className="w-full font-medium text-white flex items-center justify-center transition-transform active:scale-95"
             style={{
               display: "flex",
               background: "var(--color-accent)",
@@ -159,50 +152,10 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
               padding: "15px 0",
               fontSize: 15,
               textDecoration: "none",
-              touchAction: "manipulation",
             }}
           >
             Lanjut ke Pembayaran
           </a>
-
-          <div className="mt-5 text-left">
-            <p className="text-xs mb-2" style={{ color: "var(--color-ink-muted)" }}>
-              Atau salin link di bawah dan buka di browser (Safari/Chrome):
-            </p>
-            <div className="flex gap-2 items-center">
-              <input
-                id="url-input"
-                type="text"
-                readOnly
-                value={paymentUrl}
-                onClick={(e) => {
-                  const target = e.target as HTMLInputElement;
-                  target.focus();
-                  target.select();
-                }}
-                className="w-full p-3 rounded-lg text-xs"
-                style={{
-                  background: "var(--color-bg)",
-                  border: "1px solid var(--color-border)",
-                  color: "var(--color-accent)",
-                  outline: "none",
-                }}
-              />
-              <button
-                onClick={handleCopyLink}
-                className="flex items-center justify-center rounded-lg text-white transition-colors"
-                style={{
-                  background: copied ? "#10B981" : "var(--color-sidebar)",
-                  border: "none",
-                  padding: "0 16px",
-                  height: "42px",
-                  cursor: "pointer",
-                }}
-              >
-                {copied ? <CheckCircle2 size={18} /> : <Copy size={18} />}
-              </button>
-            </div>
-          </div>
         </div>
       ) : loading ? (
         <p className="text-center" style={{ color: "var(--color-ink-muted)" }}>Memuat paket...</p>
@@ -245,7 +198,7 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
           <button
             onClick={handleBeli}
             disabled={processing}
-            className="w-full font-medium text-white"
+            className="w-full font-medium text-white transition-opacity"
             style={{
               background: "var(--color-accent)",
               border: "none",
@@ -255,11 +208,9 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
               minHeight: 50,
               opacity: processing ? 0.6 : 1,
               cursor: "pointer",
-              touchAction: "manipulation",
-              WebkitTapHighlightColor: "transparent",
             }}
           >
-            {processing ? "Mengalihkan ke Pembayaran..." : "Bayar dengan QRIS"}
+            {processing ? "Memproses Data..." : "Bayar dengan QRIS"}
           </button>
         </div>
       )}
