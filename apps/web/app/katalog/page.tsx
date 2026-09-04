@@ -113,12 +113,8 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
       
       setPaymentUrl(json.paymentUrl);
       
-      // Trik Auto-Redirect bypass iOS Captive Portal
-      const link = document.createElement('a');
-      link.href = json.paymentUrl;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Standar Redirect yang lebih ramah sistem iOS
+      window.location.href = json.paymentUrl;
       
       setProcessing(false);
     } catch (err: any) {
@@ -149,8 +145,12 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
             Transaksi berhasil. Jika tidak pindah otomatis, ketuk tombol di bawah:
           </p>
           
-          <a
-            href={paymentUrl}
+          <button
+            onClick={() => window.location.assign(paymentUrl)}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              window.location.assign(paymentUrl);
+            }}
             className="w-full font-medium text-white flex items-center justify-center"
             style={{
               display: "flex",
@@ -159,11 +159,13 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
               borderRadius: 10,
               padding: "15px 0",
               fontSize: 15,
-              textDecoration: "none",
+              cursor: "pointer",
+              touchAction: "manipulation",
+              WebkitTapHighlightColor: "rgba(0,0,0,0.15)",
             }}
           >
             Lanjut ke Pembayaran
-          </a>
+          </button>
 
           <div className="mt-5 text-left">
             <p className="text-xs mb-2" style={{ color: "var(--color-ink-muted)" }}>
@@ -244,6 +246,12 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
 
           <button
             onClick={handleBeli}
+            onTouchEnd={(e) => {
+              if (!processing) {
+                e.preventDefault();
+                handleBeli();
+              }
+            }}
             disabled={processing}
             className="w-full font-medium text-white"
             style={{
@@ -255,6 +263,8 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
               minHeight: 50,
               opacity: processing ? 0.6 : 1,
               cursor: "pointer",
+              touchAction: "manipulation",
+              WebkitTapHighlightColor: "rgba(0,0,0,0.15)",
             }}
           >
             {processing ? "Memproses..." : "Bayar dengan QRIS"}
