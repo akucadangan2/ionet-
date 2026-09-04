@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import NetworkBackground from "@/components/NetworkBackground";
-import { Wifi, Zap, ShieldCheck, Clock, MapPin, Phone } from "lucide-react";
+import { Wifi, Zap, ShieldCheck, Clock, MapPin, Phone, Copy, CheckCircle2 } from "lucide-react";
 
 interface PaketBulanan {
   id: string;
@@ -40,6 +40,7 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
   const [processing, setProcessing] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(function () {
     async function load() {
@@ -61,7 +62,28 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
 
   useEffect(function () {
     onPaymentUrlChange(paymentUrl);
-  }, [paymentUrl, onPaymentUrlChange]);
+  }, [paymentUrl]);
+
+  async function handleCopyLink() {
+    if (!paymentUrl) return;
+    try {
+      await navigator.clipboard.writeText(paymentUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch (err: any) {
+      try {
+        const input = document.getElementById("url-input") as HTMLInputElement;
+        if (input) {
+          input.select();
+          document.execCommand("copy");
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2500);
+        }
+      } catch (err2: any) {
+        console.error("Copy gagal:", err2.message);
+      }
+    }
+  }
 
   async function handleBeli() {
     setErrorMsg("");
@@ -70,7 +92,6 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
       setErrorMsg("Pilih paket dan isi nomor HP dulu");
       return;
     }
-    
     setProcessing(true);
     const controller = new AbortController();
     const timeoutId = setTimeout(function () { controller.abort(); }, 25000);
@@ -90,13 +111,15 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
         throw new Error(json.message || "Gagal memproses pembayaran");
       }
       
+      // Update UI ke mode sukses
       setPaymentUrl(json.paymentUrl);
+      setProcessing(false);
       
-      // LANGSUNG REDIRECT KE GATEWAY TANPA TOMBOL KEDUA
-      window.location.href = json.paymentUrl;
+      // JEDA 800ms: Memastikan React mengganti layar lama sebelum iOS nge-freeze
+      setTimeout(() => {
+        window.location.assign(json.paymentUrl);
+      }, 800);
       
-      // Catatan: setProcessing(false) sengaja tidak dipanggil di sini 
-      // agar tombol tetap berstatus "Mengalihkan..." sampai halaman benar-benar pindah.
     } catch (err: any) {
       clearTimeout(timeoutId);
       if (err.name === "AbortError") {
@@ -119,7 +142,69 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
         </p>
       </div>
 
-      {loading ? (
+      {paymentUrl ? (
+        <div className="rounded-xl p-6 text-center" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+          <p className="text-sm mb-4" style={{ color: "var(--color-ink-muted)" }}>
+            Transaksi berhasil. Jika tidak otomatis pindah, ketuk tombol di bawah:
+          </p>
+          
+          <a
+            href={paymentUrl}
+            className="w-full font-medium text-white flex items-center justify-center"
+            style={{
+              display: "flex",
+              background: "var(--color-accent)",
+              border: "none",
+              borderRadius: 10,
+              padding: "15px 0",
+              fontSize: 15,
+              textDecoration: "none",
+              touchAction: "manipulation",
+            }}
+          >
+            Lanjut ke Pembayaran
+          </a>
+
+          <div className="mt-5 text-left">
+            <p className="text-xs mb-2" style={{ color: "var(--color-ink-muted)" }}>
+              Atau salin link di bawah dan buka di browser (Safari/Chrome):
+            </p>
+            <div className="flex gap-2 items-center">
+              <input
+                id="url-input"
+                type="text"
+                readOnly
+                value={paymentUrl}
+                onClick={(e) => {
+                  const target = e.target as HTMLInputElement;
+                  target.focus();
+                  target.select();
+                }}
+                className="w-full p-3 rounded-lg text-xs"
+                style={{
+                  background: "var(--color-bg)",
+                  border: "1px solid var(--color-border)",
+                  color: "var(--color-accent)",
+                  outline: "none",
+                }}
+              />
+              <button
+                onClick={handleCopyLink}
+                className="flex items-center justify-center rounded-lg text-white transition-colors"
+                style={{
+                  background: copied ? "#10B981" : "var(--color-sidebar)",
+                  border: "none",
+                  padding: "0 16px",
+                  height: "42px",
+                  cursor: "pointer",
+                }}
+              >
+                {copied ? <CheckCircle2 size={18} /> : <Copy size={18} />}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : loading ? (
         <p className="text-center" style={{ color: "var(--color-ink-muted)" }}>Memuat paket...</p>
       ) : (
         <div className="rounded-xl p-5" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
@@ -131,7 +216,6 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
             onChange={function (e) { setSelectedPaket(e.target.value); }}
             className="mb-4"
             style={inputStyle}
-            disabled={processing}
           >
             {paketList.map(function (p) {
               return (
@@ -152,7 +236,6 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
             inputMode="numeric"
             className="mb-4"
             style={inputStyle}
-            disabled={processing}
           />
 
           {errorMsg && (
@@ -172,6 +255,8 @@ function VoucherSection({ onPaymentUrlChange }: VoucherSectionProps) {
               minHeight: 50,
               opacity: processing ? 0.6 : 1,
               cursor: "pointer",
+              touchAction: "manipulation",
+              WebkitTapHighlightColor: "transparent",
             }}
           >
             {processing ? "Mengalihkan ke Pembayaran..." : "Bayar dengan QRIS"}
