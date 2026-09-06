@@ -3,7 +3,12 @@ const snmp = require("net-snmp");
 
 function snmpWalk(host, community, baseOid) {
   return new Promise((resolve) => {
-    const session = snmp.createSession(host, community, { port: 161, timeout: 5000 });
+    const session = snmp.createSession(host, community, {
+      port: 161,
+      timeout: 5000,
+      retries: 1,
+      version: snmp.Version2c,
+    });
     const results = [];
 
     session.walk(

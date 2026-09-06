@@ -205,10 +205,13 @@ app.get("/snmp/olt-signal", checkAuth, async (req, res) => {
     if (oidNama) {
       walkPromises.unshift(snmpWalk(targetHost, targetCommunity, oidNama));
     }
-
     const walkResults = await Promise.all(walkPromises);
     const powers = oidNama ? walkResults[1] : walkResults[0];
     const names = oidNama ? walkResults[0] : { results: [] };
+
+    if (powers.error) {
+      throw new Error(`SNMP walk gagal ke ${targetHost}: ${powers.error}`);
+    }
 
     const nameMap = {};
     if (oidNama) {
