@@ -5,16 +5,18 @@ import { useEffect, useState } from "react";
 interface Signal {
   onuIndex: string;
   name: string | null;
-  rxPowerDbm: number;
+  rxPowerDbm: number | null;
 }
 
-function signalColor(dbm: number) {
+function signalColor(dbm: number | null) {
+  if (dbm === null) return "var(--color-ink-muted)";
   if (dbm >= -8) return "var(--color-signal-warn)";
   if (dbm >= -25) return "var(--color-signal-good)";
   return "var(--color-signal-bad)";
 }
 
-function signalLabel(dbm: number) {
+function signalLabel(dbm: number | null) {
+  if (dbm === null) return "Tidak Ada Data";
   if (dbm >= -8) return "Terlalu Kuat";
   if (dbm >= -25) return "Normal";
   return "Lemah";
@@ -46,8 +48,13 @@ export default function SinyalOltPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const sorted = [...signals].sort((a, b) => a.rxPowerDbm - b.rxPowerDbm);
-  const lemahCount = signals.filter((s) => s.rxPowerDbm < -25).length;
+  const sorted = [...signals].sort((a, b) => {
+    if (a.rxPowerDbm === null && b.rxPowerDbm === null) return 0;
+    if (a.rxPowerDbm === null) return 1;
+    if (b.rxPowerDbm === null) return -1;
+    return a.rxPowerDbm - b.rxPowerDbm;
+  });
+  const lemahCount = signals.filter((s) => s.rxPowerDbm !== null && s.rxPowerDbm < -25).length;
 
   return (
     <div>
@@ -94,7 +101,7 @@ export default function SinyalOltPage() {
               {sorted.map((s) => (
                 <tr key={s.onuIndex} style={{ borderTop: "1px solid var(--color-border)" }}>
                   <td className="p-3">{s.name || `ONU ${s.onuIndex}`}</td>
-                  <td className="p-3">{s.rxPowerDbm.toFixed(1)} dBm</td>
+                  <td className="p-3">{s.rxPowerDbm !== null ? `${s.rxPowerDbm.toFixed(1)} dBm` : "-"}</td>
                   <td className="p-3">
                     <span
                       className="px-2 py-1 rounded text-xs font-medium"
