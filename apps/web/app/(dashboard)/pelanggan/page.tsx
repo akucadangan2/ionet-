@@ -46,6 +46,7 @@ const emptyForm = {
   pppoe_username: "",
   paket_bulanan_id: "",
   lokasi_id: "",
+  tanggal_jatuh_tempo: "",
 };
 
 export default function PelangganPage() {
@@ -61,6 +62,7 @@ export default function PelangganPage() {
   const [routerList, setRouterList] = useState<{ id: string; nama: string }[]>([]);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [bulkProcessing, setBulkProcessing] = useState(false);
+  const [modemProcessingId, setModemProcessingId] = useState<string | null>(null);
 
   const inputStyle = { border: "1px solid #ccc", borderRadius: 4, padding: "6px 12px", width: "100%", boxSizing: "border-box" as const };
 
@@ -115,6 +117,7 @@ export default function PelangganPage() {
       pppoe_username: p.pppoe_username ?? "",
       paket_bulanan_id: p.paket_bulanan_id ?? "",
       lokasi_id: p.lokasi_id ?? "",
+      tanggal_jatuh_tempo: p.tanggal_jatuh_tempo ? p.tanggal_jatuh_tempo.slice(0, 10) : "",
     });
     setEditingId(p.id);
     setShowForm(true);
@@ -134,6 +137,7 @@ export default function PelangganPage() {
       pppoe_username: form.tipe_langganan === "pppoe_bulanan" ? form.pppoe_username : null,
       paket_bulanan_id: form.tipe_langganan === "pppoe_bulanan" ? (form.paket_bulanan_id || null) : null,
       lokasi_id: form.lokasi_id || null,
+      tanggal_jatuh_tempo: form.tipe_langganan === "pppoe_bulanan" ? (form.tanggal_jatuh_tempo || null) : null,
     };
 
     if (editingId) {
@@ -232,6 +236,46 @@ export default function PelangganPage() {
       }
     } finally {
       setBulkProcessing(false);
+    }
+  }
+
+  async function handleMatikanModem(pelangganId: string, nama: string) {
+    if (!window.confirm(`Matikan modem ${nama} sekarang juga? Internetnya langsung terputus.`)) return;
+    setModemProcessingId(pelangganId);
+    try {
+      const res = await fetch("/api/billing/disable-modem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pelangganId }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        alert(`Gagal: ${json.message}`);
+      } else {
+        loadData();
+      }
+    } finally {
+      setModemProcessingId(null);
+    }
+  }
+
+  async function handleAktifkanModem(pelangganId: string, nama: string) {
+    if (!window.confirm(`Aktifkan kembali modem ${nama}?`)) return;
+    setModemProcessingId(pelangganId);
+    try {
+      const res = await fetch("/api/billing/activate-modem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pelangganId }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        alert(`Gagal: ${json.message}`);
+      } else {
+        loadData();
+      }
+    } finally {
+      setModemProcessingId(null);
     }
   }
 
@@ -390,25 +434,41 @@ export default function PelangganPage() {
           </div>
 
           {form.tipe_langganan === "pppoe_bulanan" && (
-            <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
-              <input
-                placeholder="Username PPPoE"
-                value={form.pppoe_username}
-                onChange={(e) => setForm({ ...form, pppoe_username: e.target.value })}
-                style={inputStyle}
-              />
-              <select
-                value={form.paket_bulanan_id}
-                onChange={(e) => setForm({ ...form, paket_bulanan_id: e.target.value })}
-                style={inputStyle}
-              >
-                <option value="">- Pilih Paket -</option>
-                {paketList.map((pk) => (
-                  <option key={pk.id} value={pk.id}>
-                    {pk.nama} (Rp {pk.harga_per_bulan.toLocaleString("id-ID")}/bulan)
-                  </option>
-                ))}
-              </select>
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+                <input
+                  placeholder="Username PPPoE"
+                  value={form.pppoe_username}
+                  onChange={(e) => setForm({ ...form, pppoe_username: e.target.value })}
+                  style={inputStyle}
+                />
+                <select
+                  value={form.paket_bulanan_id}
+                  onChange={(e) => setForm({ ...form, paket_bulanan_id: e.target.value })}
+                  style={inputStyle}
+                >
+                  <option value="">- Pilih Paket -</option>
+                  {paketList.map((pk) => (
+                    <option key={pk.id} value={pk.id}>
+                      {pk.nama} (Rp {pk.harga_per_bulan.toLocaleString("id-ID")}/bulan)
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs block mb-1" style={{ color: "var(--color-ink-muted)", fontSize: 12 }}>
+                  Tanggal Jatuh Tempo
+                </label>
+                <input
+                  type="date"
+                  value={form.tanggal_jatuh_tempo}
+                  onChange={(e) => setForm({ ...form, tanggal_jatuh_tempo: e.target.value })}
+                  style={inputStyle}
+                />
+                <p style={{ fontSize: 11, color: "var(--color-ink-muted)", marginTop: 4 }}>
+                  Kalau Auto-Disable aktif, modem otomatis dimatikan sehari setelah tanggal ini
+                </p>
+              </div>
             </div>
           )}
 
@@ -481,7 +541,7 @@ export default function PelangganPage() {
               </td>
               <td style={{ padding: 8 }}>
                 {p.latitude && p.longitude ? (
-                  <a // <--- PERBAIKAN DI SINI, SEBELUMNYA TAG <a> HILANG
+                  <a
                     href={`https://www.google.com/maps?q=${p.latitude},${p.longitude}`}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -499,6 +559,24 @@ export default function PelangganPage() {
                 <button onClick={() => handleHapus(p.id)} style={{ marginLeft: 5 }}>
                   Hapus
                 </button>
+                {p.tipe_langganan === "pppoe_bulanan" && p.status === "aktif" && (
+                  <button
+                    onClick={() => handleMatikanModem(p.id, p.nama)}
+                    disabled={modemProcessingId === p.id}
+                    style={{ marginLeft: 5, color: "var(--color-signal-bad)", opacity: modemProcessingId === p.id ? 0.6 : 1 }}
+                  >
+                    {modemProcessingId === p.id ? "..." : "Matikan"}
+                  </button>
+                )}
+                {p.tipe_langganan === "pppoe_bulanan" && p.status !== "aktif" && (
+                  <button
+                    onClick={() => handleAktifkanModem(p.id, p.nama)}
+                    disabled={modemProcessingId === p.id}
+                    style={{ marginLeft: 5, color: "var(--color-signal-good)", opacity: modemProcessingId === p.id ? 0.6 : 1 }}
+                  >
+                    {modemProcessingId === p.id ? "..." : "Aktifkan"}
+                  </button>
+                )}
               </td>
             </tr>
           ))}
