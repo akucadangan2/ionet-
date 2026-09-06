@@ -40,6 +40,12 @@ function getIconByKategori(kategori?: string) {
   return iconDefault;
 }
 
+function getIconForPelanggan(p: PelangganPin) {
+  if (p.signalStatus === "lemah") return iconMerah;
+  if (p.signalStatus === "normal") return iconHijau;
+  return getIconByKategori(p.kmlKategori);
+}
+
 function stripHtmlTags(text: string): string {
   return text.replace(/<[^>]*>/g, "").trim();
 }
@@ -62,6 +68,7 @@ interface PelangganPin {
   txPower?: number;
   kmlKategori?: string;
   kmlDeskripsi?: string;
+  signalStatus?: "lemah" | "normal";
 }
 
 interface TitikJaringanPin {
@@ -88,6 +95,9 @@ interface NetworkMapProps {
   titikJaringan?: TitikJaringanPin[];
   jalurKabel?: JalurKabelLine[];
   center: [number, number];
+  height?: string;
+  showLayerPanel?: boolean;
+  showLegendPanel?: boolean;
 }
 
 const legendPanelStyle: React.CSSProperties = {
@@ -136,7 +146,16 @@ function LegendDot(props: { color: string; label: string; shape?: "circle" | "di
   );
 }
 
-export default function NetworkMap({ routers, pelanggan, titikJaringan, jalurKabel, center }: NetworkMapProps) {
+export default function NetworkMap({
+  routers,
+  pelanggan,
+  titikJaringan,
+  jalurKabel,
+  center,
+  height,
+  showLayerPanel = true,
+  showLegendPanel = true,
+}: NetworkMapProps) {
   const [showRouter, setShowRouter] = useState(true);
   const [showPelanggan, setShowPelanggan] = useState(true);
   const [showTitik, setShowTitik] = useState(true);
@@ -149,7 +168,7 @@ export default function NetworkMap({ routers, pelanggan, titikJaringan, jalurKab
 
   return (
     <div style={{ position: "relative" }}>
-      <MapContainer center={center} zoom={15} zoomControl={false} style={{ height: "600px", width: "100%" }}>
+      <MapContainer center={center} zoom={15} zoomControl={false} style={{ height: height || "600px", width: "100%" }}>
         <ZoomControl position="bottomright" />
 
         <LayersControl position="topright">
@@ -218,7 +237,7 @@ export default function NetworkMap({ routers, pelanggan, titikJaringan, jalurKab
           pelanggan.map(function (p) {
             const cleanDeskripsi = p.kmlDeskripsi ? stripHtmlTags(p.kmlDeskripsi) : "";
             return (
-              <Marker key={p.id} position={[p.latitude, p.longitude]} icon={getIconByKategori(p.kmlKategori)}>
+              <Marker key={p.id} position={[p.latitude, p.longitude]} icon={getIconForPelanggan(p)}>
                 <Popup>
                   <div style={{ minWidth: 200, maxWidth: 260 }}>
                     <b>{p.nama}</b>
@@ -278,40 +297,44 @@ export default function NetworkMap({ routers, pelanggan, titikJaringan, jalurKab
           })}
       </MapContainer>
 
-      <div style={layerPanelStyle}>
-        <p style={{ fontWeight: 600, marginBottom: 8, color: "#333" }}>Layer Data</p>
-        <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, cursor: "pointer" }}>
-          <input type="checkbox" checked={showRouter} onChange={function () { setShowRouter(!showRouter); }} />
-          Router ({routers.length})
-        </label>
-        <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, cursor: "pointer" }}>
-          <input type="checkbox" checked={showPelanggan} onChange={function () { setShowPelanggan(!showPelanggan); }} />
-          Pelanggan ({pelanggan.length})
-        </label>
-        <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, cursor: "pointer" }}>
-          <input type="checkbox" checked={showTitik} onChange={function () { setShowTitik(!showTitik); }} />
-          ODC/ODP ({(titikJaringan || []).length})
-        </label>
-        <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
-          <input type="checkbox" checked={showJalur} onChange={function () { setShowJalur(!showJalur); }} />
-          Jalur Kabel ({(jalurKabel || []).length})
-        </label>
-      </div>
-
-      <div style={legendPanelStyle}>
-        <p style={{ fontWeight: 600, marginBottom: 8, color: "#333" }}>Legenda</p>
-        <LegendDot color="#2FAE60" label="Router / Pelanggan Online" />
-        <LegendDot color="#D64545" label="Router / Pelanggan Offline" />
-        <LegendDot color="#E8B923" label="Aktif + Reseller Voucher" />
-        <LegendDot color="#3B82F6" label="Titik Modem Hotspot" />
-        <LegendDot color="#9CA3AF" label="Pelanggan Tidak Aktif" />
-        <LegendDot color="#8B5CF6" label={"ODC (" + jumlahOdc + " titik)"} shape="diamond" />
-        <LegendDot color="#F59E0B" label={"ODP (" + jumlahOdp + " titik)"} shape="diamond" />
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
-          <span style={{ width: 16, height: 2, background: "#3388ff", flexShrink: 0 }} />
-          <span style={{ color: "#444" }}>Jalur Kabel Fiber</span>
+      {showLayerPanel && (
+        <div style={layerPanelStyle}>
+          <p style={{ fontWeight: 600, marginBottom: 8, color: "#333" }}>Layer Data</p>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, cursor: "pointer" }}>
+            <input type="checkbox" checked={showRouter} onChange={function () { setShowRouter(!showRouter); }} />
+            Router ({routers.length})
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, cursor: "pointer" }}>
+            <input type="checkbox" checked={showPelanggan} onChange={function () { setShowPelanggan(!showPelanggan); }} />
+            Pelanggan ({pelanggan.length})
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, cursor: "pointer" }}>
+            <input type="checkbox" checked={showTitik} onChange={function () { setShowTitik(!showTitik); }} />
+            ODC/ODP ({(titikJaringan || []).length})
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+            <input type="checkbox" checked={showJalur} onChange={function () { setShowJalur(!showJalur); }} />
+            Jalur Kabel ({(jalurKabel || []).length})
+          </label>
         </div>
-      </div>
+      )}
+
+      {showLegendPanel && (
+        <div style={legendPanelStyle}>
+          <p style={{ fontWeight: 600, marginBottom: 8, color: "#333" }}>Legenda</p>
+          <LegendDot color="#2FAE60" label="Router / Pelanggan Online" />
+          <LegendDot color="#D64545" label="Router / Pelanggan Offline" />
+          <LegendDot color="#E8B923" label="Aktif + Reseller Voucher" />
+          <LegendDot color="#3B82F6" label="Titik Modem Hotspot" />
+          <LegendDot color="#9CA3AF" label="Pelanggan Tidak Aktif" />
+          <LegendDot color="#8B5CF6" label={"ODC (" + jumlahOdc + " titik)"} shape="diamond" />
+          <LegendDot color="#F59E0B" label={"ODP (" + jumlahOdp + " titik)"} shape="diamond" />
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
+            <span style={{ width: 16, height: 2, background: "#3388ff", flexShrink: 0 }} />
+            <span style={{ color: "#444" }}>Jalur Kabel Fiber</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

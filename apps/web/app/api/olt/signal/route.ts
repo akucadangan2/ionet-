@@ -14,7 +14,7 @@ export async function GET() {
       .single();
 
     if (!routerResult.data) {
-      return NextResponse.json({ signals: [], message: "Belum ada router dengan OLT vendor diset" });
+      return NextResponse.json({ signals: [], mapPoints: [], message: "Belum ada router dengan OLT vendor diset" });
     }
 
     const vendorResult = await supabase
@@ -24,7 +24,7 @@ export async function GET() {
       .single();
 
     if (!vendorResult.data || !vendorResult.data.oid_rx_power) {
-      return NextResponse.json({ signals: [], message: "Konfigurasi OID vendor ini belum tersedia" });
+      return NextResponse.json({ signals: [], mapPoints: [], message: "Konfigurasi OID vendor ini belum tersedia" });
     }
 
     const cfg = vendorResult.data;
@@ -42,7 +42,42 @@ export async function GET() {
     const json = await res.json();
     if (!res.ok) throw new Error(json.message || `Relay error: ${res.status}`);
 
-    return NextResponse.json(json);
+    const signals = json.signals || [];
+
+    // Cocokkan nama ONU ke pppoe_username pelanggan yang punya titik GPS,
+    // biar bisa diplot di peta. ONU dengan nama cuma angka index (nggak match
+    // ke username manapun) otomatis dilewatin dari mapPoints - wajar terjadi.
+    const { data: pelangganList } = await supabase
+      .from("pelanggan")
+      .select("id, nama, latitude, longitude, pppoe_username")
+      .not("latitude", "is", null)
+      .not("pppoe_username", "is", null);
+
+    const pelangganByUsername: Record<string, any> = {};
+    (pelangganList || []).forEach((p) => {
+      if (p.pppoe_username) {
+        pelangganByUsername[p.pppoe_username.toLowerCase()] = p;
+      }
+    });
+
+    const mapPoints: any[] = [];
+    signals.forEach((s: any) => {
+      if (!s.name) return;
+      const match = pelangganByUsername[s.name.toLowerCase()];
+      if (match) {
+        mapPoints.push({
+          id: match.id,
+          nama: match.nama,
+          latitude: match.latitude,
+          longitude: match.longitude,
+          status: "-",
+          rxPower: s.rxPowerDbm,
+          signalStatus: s.rxPowerDbm === null ? undefined : s.rxPowerDbm < -25 ? "lemah" : "normal",
+        });
+      }
+    });
+
+    return NextResponse.json({ signals, mapPoints });
   } catch (err) {
     return NextResponse.json({ message: (err as Error).message }, { status: 500 });
   }
