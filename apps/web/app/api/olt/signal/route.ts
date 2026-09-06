@@ -42,15 +42,15 @@ export async function GET() {
     const json = await res.json();
     if (!res.ok) throw new Error(json.message || `Relay error: ${res.status}`);
 
-    const signals = json.signals || [];
+    const rawSignals = json.signals || [];
 
-    // Cocokkan nama ONU ke pppoe_username pelanggan yang punya titik GPS,
-    // biar bisa diplot di peta. ONU dengan nama cuma angka index (nggak match
-    // ke username manapun) otomatis dilewatin dari mapPoints - wajar terjadi.
+    // Cocokkan nama ONU ke pppoe_username pelanggan, biar bisa tampilin nama
+    // pelanggan asli (bukan cuma username/ID mentah dari OLT) dan diplot di peta.
+    // ONU yang namanya cuma angka index bawaan OLT (belum dilabel teknisi pas
+    // instalasi) otomatis nggak ketemu pasangan - itu wajar, bukan bug.
     const { data: pelangganList } = await supabase
       .from("pelanggan")
       .select("id, nama, latitude, longitude, pppoe_username")
-      .not("latitude", "is", null)
       .not("pppoe_username", "is", null);
 
     const pelangganByUsername: Record<string, any> = {};
@@ -60,11 +60,19 @@ export async function GET() {
       }
     });
 
+    const signals = rawSignals.map((s: any) => {
+      const match = s.name ? pelangganByUsername[s.name.toLowerCase()] : null;
+      return {
+        ...s,
+        pelangganNama: match ? match.nama : null,
+      };
+    });
+
     const mapPoints: any[] = [];
     signals.forEach((s: any) => {
       if (!s.name) return;
       const match = pelangganByUsername[s.name.toLowerCase()];
-      if (match) {
+      if (match && match.latitude && match.longitude) {
         mapPoints.push({
           id: match.id,
           nama: match.nama,

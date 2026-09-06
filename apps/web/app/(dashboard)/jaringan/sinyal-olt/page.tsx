@@ -9,6 +9,7 @@ interface Signal {
   onuIndex: string;
   name: string | null;
   rxPowerDbm: number | null;
+  pelangganNama: string | null;
 }
 
 interface MapPoint {
@@ -70,6 +71,7 @@ export default function SinyalOltPage() {
     return a.rxPowerDbm - b.rxPowerDbm;
   });
   const lemahCount = signals.filter((s) => s.rxPowerDbm !== null && s.rxPowerDbm < -25).length;
+  const teridentifikasiCount = signals.filter((s) => s.pelangganNama).length;
 
   const mapCenter: [number, number] =
     mapPoints.length > 0 ? [mapPoints[0].latitude, mapPoints[0].longitude] : [-5.45, 105.27];
@@ -82,8 +84,7 @@ export default function SinyalOltPage() {
             Sinyal Laser OLT
           </h1>
           <p className="text-sm mt-1" style={{ color: "var(--color-ink-muted)" }}>
-            {signals.length} ONU terpantau, {lemahCount} sinyal lemah
-            {mapPoints.length > 0 && ` \u00b7 ${mapPoints.length} titik terpetakan`}
+            {signals.length} ONU terpantau, {lemahCount} sinyal lemah, {teridentifikasiCount} teridentifikasi nama pelanggan
           </p>
         </div>
         <button
@@ -112,7 +113,8 @@ export default function SinyalOltPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr style={{ background: "var(--color-bg)" }}>
-                  <th className="text-left p-3">Nama / ONU Index</th>
+                  <th className="text-left p-3">Nama Pelanggan</th>
+                  <th className="text-left p-3">Username / ONU Index</th>
                   <th className="text-left p-3">Rx Power</th>
                   <th className="text-left p-3">Status</th>
                 </tr>
@@ -120,7 +122,12 @@ export default function SinyalOltPage() {
               <tbody>
                 {sorted.map((s) => (
                   <tr key={s.onuIndex} style={{ borderTop: "1px solid var(--color-border)" }}>
-                    <td className="p-3">{s.name || `ONU ${s.onuIndex}`}</td>
+                    <td className="p-3">
+                      {s.pelangganNama || <span style={{ color: "var(--color-ink-muted)" }}>-</span>}
+                    </td>
+                    <td className="p-3" style={{ color: s.pelangganNama ? "var(--color-ink-muted)" : "var(--color-ink)" }}>
+                      {s.name || `ONU ${s.onuIndex}`}
+                    </td>
                     <td className="p-3">{s.rxPowerDbm !== null ? `${s.rxPowerDbm.toFixed(1)} dBm` : "-"}</td>
                     <td className="p-3">
                       <span
