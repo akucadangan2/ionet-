@@ -1,4 +1,6 @@
-// test-olt-auth.js - coba beberapa pola login OLT sekaligus, laporan simpel
+// test-olt-auth.js - script diagnostik: coba beberapa pola login OLT sekaligus
+// Dipakai sekali buat nemuin cara autentikasi yang benar, bukan bagian dari
+// server.js yang jalan permanen - jalanin manual pas dibutuhkan aja.
 const targets = ["192.168.44.102", "192.168.44.103"];
 const attempts = [
   { desc: "form: username/password", body: "username=root&password=admin" },
