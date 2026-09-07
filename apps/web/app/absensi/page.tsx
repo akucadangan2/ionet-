@@ -42,6 +42,7 @@ export default function AbsensiPage() {
   const [success, setSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
+  const [role, setRole] = useState<string | null>(null);
   const [lockedNama, setLockedNama] = useState<string | null>(null);
   const [belumLink, setBelumLink] = useState(false);
   const [checkingUser, setCheckingUser] = useState(true);
@@ -76,21 +77,22 @@ export default function AbsensiPage() {
           .eq("auth_user_id", user.id)
           .single();
 
-        if (
-          staffResult.data &&
-          staffResult.data.role !== "super_admin"
-        ) {
-          const karyawanRel =
-            staffResult.data.karyawan as unknown as {
-              id: string;
-              nama: string;
-            } | null;
+        if (staffResult.data) {
+          setRole(staffResult.data.role);
 
-          if (karyawanRel) {
-            setSelectedKaryawan(karyawanRel.id);
-            setLockedNama(karyawanRel.nama);
-          } else {
-            setBelumLink(true);
+          if (staffResult.data.role !== "super_admin") {
+            const karyawanRel =
+              staffResult.data.karyawan as unknown as {
+                id: string;
+                nama: string;
+              } | null;
+
+            if (karyawanRel) {
+              setSelectedKaryawan(karyawanRel.id);
+              setLockedNama(karyawanRel.nama);
+            } else {
+              setBelumLink(true);
+            }
           }
         }
       }
@@ -515,24 +517,7 @@ export default function AbsensiPage() {
               >
                 Memuat...
               </p>
-            ) : lockedNama ? (
-              <div
-                className="w-full mb-4"
-                style={{
-                  border:
-                    "1px solid var(--color-border)",
-                  borderRadius: 9,
-                  padding:
-                    "11px 14px",
-                  background:
-                    "var(--color-bg)",
-                  color:
-                    "var(--color-ink)",
-                }}
-              >
-                {lockedNama}
-              </div>
-            ) : (
+            ) : role === "super_admin" ? (
               <select
                 value={
                   selectedKaryawan
@@ -578,24 +563,38 @@ export default function AbsensiPage() {
                   }
                 )}
               </select>
+            ) : lockedNama ? (
+              <div
+                className="w-full mb-4"
+                style={{
+                  border:
+                    "1px solid var(--color-border)",
+                  borderRadius: 9,
+                  padding:
+                    "11px 14px",
+                  background:
+                    "var(--color-bg)",
+                  color:
+                    "var(--color-ink)",
+                }}
+              >
+                {lockedNama}
+              </div>
+            ) : (
+              <p
+                className="text-sm mb-4"
+                style={{
+                  color:
+                    "var(--color-signal-bad)",
+                }}
+              >
+                Akun kamu belum
+                dihubungkan ke data
+                Karyawan. Hubungi
+                Super Admin untuk
+                menghubungkan akun.
+              </p>
             )}
-
-            {!checkingUser &&
-              belumLink && (
-                <p
-                  className="text-sm mb-4"
-                  style={{
-                    color:
-                      "var(--color-signal-bad)",
-                  }}
-                >
-                  Akun kamu belum
-                  dihubungkan ke data
-                  Karyawan. Hubungi
-                  Super Admin untuk
-                  menghubungkan akun.
-                </p>
-              )}
 
             {/* =================================================
                 TIPE ABSEN
@@ -2198,4 +2197,3 @@ export default function AbsensiPage() {
     </div>
   );
 }
-
