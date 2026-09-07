@@ -31,6 +31,8 @@ export default function PenggunaPage() {
   const [resetTargetId, setResetTargetId] = useState<string | null>(null);
   const [resetPassword, setResetPassword] = useState("");
   const [resetting, setResetting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [currentAuthUserId, setCurrentAuthUserId] = useState<string | null>(null);
 
   async function loadData() {
     setLoading(true);
@@ -41,6 +43,11 @@ export default function PenggunaPage() {
 
   useEffect(() => {
     loadData();
+    async function loadCurrentUser() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setCurrentAuthUserId(user.id);
+    }
+    loadCurrentUser();
   }, []);
 
   async function handleTambahStaff() {
@@ -75,6 +82,29 @@ export default function PenggunaPage() {
     alert(json.message);
     setResetTargetId(null);
     setResetPassword("");
+  }
+
+  async function handleHapusStaff(staff: Staff) {
+    const konfirmasi = window.confirm(
+      `Yakin mau hapus staff "${staff.nama}"? Akun login-nya juga akan dihapus permanen dan tidak bisa login lagi.`
+    );
+    if (!konfirmasi) return;
+
+    setDeletingId(staff.id);
+    try {
+      const res = await fetch("/api/staff/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ staffId: staff.id, authUserId: staff.auth_user_id }),
+      });
+      const json = await res.json();
+      alert(json.message);
+      if (res.ok) {
+        loadData();
+      }
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   if (loading) return <p style={{ color: "var(--color-ink-muted)" }}>Memuat...</p>;
@@ -145,56 +175,75 @@ export default function PenggunaPage() {
             <tr><th>Nama</th><th>Role</th><th>No HP</th><th>Aksi</th></tr>
           </thead>
           <tbody>
-            {staffList.map((s) => (
-              <tr key={s.id}>
-                <td>{s.nama}</td>
-                <td>
-                  <span
-                    className="px-2 py-1 rounded text-xs font-medium"
-                    style={{ background: roleStyle[s.role]?.bg, color: roleStyle[s.role]?.color }}
-                  >
-                    {roleStyle[s.role]?.label ?? s.role}
-                  </span>
-                </td>
-                <td className="mono">{s.no_hp ?? "-"}</td>
-                <td>
-                  {resetTargetId === s.auth_user_id ? (
-                    <div className="flex gap-1 items-center">
-                      <input
-                        type="text"
-                        placeholder="Password baru"
-                        value={resetPassword}
-                        onChange={(e) => setResetPassword(e.target.value)}
-                        style={{ ...inputStyle, width: 130, padding: "4px 8px" }}
-                      />
-                      <button
-                        onClick={() => handleResetPassword(s.auth_user_id)}
-                        disabled={resetting}
-                        className="px-2 py-1 rounded text-xs text-white"
-                        style={{ background: "var(--color-signal-good)" }}
-                      >
-                        {resetting ? "..." : "Simpan"}
-                      </button>
-                      <button
-                        onClick={() => { setResetTargetId(null); setResetPassword(""); }}
-                        className="px-2 py-1 rounded text-xs"
-                        style={{ border: "1px solid var(--color-border)" }}
-                      >
-                        Batal
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setResetTargetId(s.auth_user_id)}
-                      className="px-2 py-1 rounded text-xs"
-                      style={{ border: "1px solid var(--color-border)" }}
+            {staffList.map((s) => {
+              const isSelf = s.auth_user_id === currentAuthUserId;
+              return (
+                <tr key={s.id}>
+                  <td>{s.nama}</td>
+                  <td>
+                    <span
+                      className="px-2 py-1 rounded text-xs font-medium"
+                      style={{ background: roleStyle[s.role]?.bg, color: roleStyle[s.role]?.color }}
                     >
-                      Reset Password
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
+                      {roleStyle[s.role]?.label ?? s.role}
+                    </span>
+                  </td>
+                  <td className="mono">{s.no_hp ?? "-"}</td>
+                  <td>
+                    {resetTargetId === s.auth_user_id ? (
+                      <div className="flex gap-1 items-center">
+                        <input
+                          type="text"
+                          placeholder="Password baru"
+                          value={resetPassword}
+                          onChange={(e) => setResetPassword(e.target.value)}
+                          style={{ ...inputStyle, width: 130, padding: "4px 8px" }}
+                        />
+                        <button
+                          onClick={() => handleResetPassword(s.auth_user_id)}
+                          disabled={resetting}
+                          className="px-2 py-1 rounded text-xs text-white"
+                          style={{ background: "var(--color-signal-good)" }}
+                        >
+                          {resetting ? "..." : "Simpan"}
+                        </button>
+                        <button
+                          onClick={() => { setResetTargetId(null); setResetPassword(""); }}
+                          className="px-2 py-1 rounded text-xs"
+                          style={{ border: "1px solid var(--color-border)" }}
+                        >
+                          Batal
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-1 items-center">
+                        <button
+                          onClick={() => setResetTargetId(s.auth_user_id)}
+                          className="px-2 py-1 rounded text-xs"
+                          style={{ border: "1px solid var(--color-border)" }}
+                        >
+                          Reset Password
+                        </button>
+                        <button
+                          onClick={() => handleHapusStaff(s)}
+                          disabled={isSelf || deletingId === s.id}
+                          title={isSelf ? "Tidak bisa hapus akun sendiri" : "Hapus staff ini"}
+                          className="px-2 py-1 rounded text-xs"
+                          style={{
+                            border: "1px solid var(--color-signal-bad)",
+                            color: isSelf ? "var(--color-ink-muted)" : "var(--color-signal-bad)",
+                            opacity: isSelf || deletingId === s.id ? 0.5 : 1,
+                            cursor: isSelf ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          {deletingId === s.id ? "..." : "Hapus"}
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
             {staffList.length === 0 && (
               <tr>
                 <td colSpan={4} className="text-center py-8" style={{ color: "var(--color-ink-muted)" }}>

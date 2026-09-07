@@ -5,6 +5,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import { canAccess } from "@/lib/roles";
 import {
   Users,
   Wallet,
@@ -30,49 +31,49 @@ const menuGroups = [
   {
     label: "Billing",
     items: [
-      { href: "/billing/voucher", label: "Voucher", icon: Ticket },
-      { href: "/billing/voucher-massal", label: "Generate Voucher Massal", icon: Ticket },
-      { href: "/billing/hotspot-aktif", label: "Hotspot Aktif", icon: Wifi },
-      { href: "/billing/langganan-bulanan", label: "Langganan Bulanan", icon: CreditCard },
-      { href: "/billing/paket", label: "Paket Harga", icon: Package },
-      { href: "/billing/laporan-keuangan", label: "Laporan Keuangan", icon: FileSpreadsheet },
-      { href: "/billing/buku-kas", label: "Buku Kas", icon: Wallet },
+      { href: "/billing/voucher", label: "Voucher", icon: Ticket, roles: ["admin"] },
+      { href: "/billing/voucher-massal", label: "Generate Voucher Massal", icon: Ticket, roles: ["admin"] },
+      { href: "/billing/hotspot-aktif", label: "Hotspot Aktif", icon: Wifi, roles: ["admin"] },
+      { href: "/billing/langganan-bulanan", label: "Langganan Bulanan", icon: CreditCard, roles: ["admin"] },
+      { href: "/billing/paket", label: "Paket Harga", icon: Package, roles: [] },
+      { href: "/billing/laporan-keuangan", label: "Laporan Keuangan", icon: FileSpreadsheet, roles: [] },
+      { href: "/billing/buku-kas", label: "Buku Kas", icon: Wallet, roles: ["admin"] },
     ],
   },
   {
     label: "Jaringan",
     items: [
-      { href: "/jaringan/peta", label: "Peta Jaringan", icon: Map },
-      { href: "/jaringan/odc-odp", label: "Titik ODC/ODP", icon: MapPin },
-      { href: "/jaringan/bandwidth", label: "Bandwidth", icon: Gauge },
-      { href: "/jaringan/uplink-monitoring", label: "Monitoring Uplink", icon: Radio },
-      { href: "/jaringan/radius", label: "RADIUS", icon: Server },
-      { href: "/jaringan/rekap-uplink", label: "Rekap Uplink", icon: Gauge },
-      { href: "/jaringan/sinyal-olt", label: "Sinyal OLT", icon: Zap },
-      { href: "/jaringan/genieacs", label: "Kelola Modem", icon: Wifi },
-      { href: "/jaringan/genieacs-coverage", label: "Cakupan GenieACS", icon: Radio },
-      { href: "/jaringan/lokasi", label: "Lokasi", icon: MapPin },
+      { href: "/jaringan/peta", label: "Peta Jaringan", icon: Map, roles: ["admin", "teknisi"] },
+      { href: "/jaringan/odc-odp", label: "Titik ODC/ODP", icon: MapPin, roles: ["teknisi"] },
+      { href: "/jaringan/bandwidth", label: "Bandwidth", icon: Gauge, roles: ["admin"] },
+      { href: "/jaringan/uplink-monitoring", label: "Monitoring Uplink", icon: Radio, roles: [] },
+      { href: "/jaringan/radius", label: "RADIUS", icon: Server, roles: [] },
+      { href: "/jaringan/rekap-uplink", label: "Rekap Uplink", icon: Gauge, roles: ["admin"] },
+      { href: "/jaringan/sinyal-olt", label: "Sinyal OLT", icon: Zap, roles: ["admin", "teknisi"] },
+      { href: "/jaringan/genieacs", label: "Kelola Modem", icon: Wifi, roles: ["admin"] },
+      { href: "/jaringan/genieacs-coverage", label: "Cakupan GenieACS", icon: Radio, roles: ["admin"] },
+      { href: "/jaringan/lokasi", label: "Lokasi", icon: MapPin, roles: [] },
     ],
   },
   {
     label: "Operasional",
     items: [
-      { href: "/pelanggan", label: "Data Pelanggan", icon: Users },
-      { href: "/tiket", label: "Tiket Gangguan", icon: AlertTriangle },
-      { href: "/operasional/karyawan", label: "Data Karyawan", icon: Users },
-      { href: "/pengguna", label: "Pengguna", icon: UserCog },
-      { href: "/operasional/absensi", label: "Rekap Absensi", icon: AlertTriangle },
-      { href: "/operasional/kasbon", label: "Kasbon", icon: Wallet },
-      { href: "/operasional/payroll", label: "Payroll", icon: Wallet },
-      { href: "/operasional/komisi", label: "Komisi", icon: Wallet },
-      { href: "/backup", label: "Backup Lokal", icon: Database },
-      { href: "/operasional/asisten-hr", label: "Bot HR", icon: Bot, highlight: true },
+      { href: "/pelanggan", label: "Data Pelanggan", icon: Users, roles: ["admin"] },
+      { href: "/tiket", label: "Tiket Gangguan", icon: AlertTriangle, roles: ["admin", "teknisi"] },
+      { href: "/operasional/karyawan", label: "Data Karyawan", icon: Users, roles: [] },
+      { href: "/pengguna", label: "Pengguna", icon: UserCog, roles: [] },
+      { href: "/operasional/absensi", label: "Rekap Absensi", icon: AlertTriangle, roles: ["admin", "teknisi"] },
+      { href: "/operasional/kasbon", label: "Kasbon", icon: Wallet, roles: ["admin", "teknisi"] },
+      { href: "/operasional/payroll", label: "Payroll", icon: Wallet, roles: [] },
+      { href: "/operasional/komisi", label: "Komisi", icon: Wallet, roles: ["admin"] },
+      { href: "/backup", label: "Backup Lokal", icon: Database, roles: [] },
+      { href: "/operasional/asisten-hr", label: "Bot HR", icon: Bot, highlight: true, roles: [] },
     ],
   },
   {
     label: "Pengaturan",
     items: [
-      { href: "/pengaturan/notifikasi", label: "Notifikasi WA", icon: Bell },
+      { href: "/pengaturan/notifikasi", label: "Notifikasi WA", icon: Bell, roles: [] },
     ],
   },
 ];
@@ -146,7 +147,9 @@ export default function TopNav() {
             </Link>
 
             {menuGroups.map((group) => {
-              const groupActive = group.items.some((item) => pathname.startsWith(item.href));
+              const visibleItems = group.items.filter((item) => canAccess(role, item.roles));
+              if (visibleItems.length === 0) return null;
+              const groupActive = visibleItems.some((item) => pathname.startsWith(item.href));
               return (
                 <div key={group.label} className="relative">
                   <button
@@ -171,7 +174,7 @@ export default function TopNav() {
                         maxHeight: 340,
                       }}
                     >
-                      {group.items.map((item: any) => {
+                      {visibleItems.map((item: any) => {
                         const active = pathname.startsWith(item.href);
                         const ItemIcon = item.icon;
                         return (

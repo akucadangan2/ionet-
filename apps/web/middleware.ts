@@ -1,12 +1,40 @@
-// middleware.ts
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-// Rute yang butuh role tertentu - update tiap nambah halaman baru
+// Rute yang butuh role tertentu, di luar super_admin (super_admin selalu boleh
+// akses semua rute, gak perlu ditulis manual). Update tiap nambah halaman baru.
 const ROLE_RESTRICTED_ROUTES: Record<string, string[]> = {
-  "/pengguna": ["super_admin"],
-  "/jaringan/lokasi": ["super_admin", "admin"],
-  "/tiket": ["super_admin", "admin", "teknisi"],
+  "/billing/voucher": ["admin"],
+  "/billing/voucher-massal": ["admin"],
+  "/billing/hotspot-aktif": ["admin"],
+  "/billing/langganan-bulanan": ["admin"],
+  "/billing/paket": [],
+  "/billing/laporan-keuangan": [],
+  "/billing/buku-kas": ["admin"],
+
+  "/jaringan/peta": ["admin", "teknisi"],
+  "/jaringan/odc-odp": ["teknisi"],
+  "/jaringan/bandwidth": ["admin"],
+  "/jaringan/uplink-monitoring": [],
+  "/jaringan/radius": [],
+  "/jaringan/rekap-uplink": ["admin"],
+  "/jaringan/sinyal-olt": ["admin", "teknisi"],
+  "/jaringan/genieacs": ["admin"],
+  "/jaringan/genieacs-coverage": ["admin"],
+  "/jaringan/lokasi": [],
+
+  "/pelanggan": ["admin"],
+  "/tiket": ["admin", "teknisi"],
+  "/operasional/karyawan": [],
+  "/pengguna": [],
+  "/operasional/absensi": ["admin", "teknisi"],
+  "/operasional/kasbon": ["admin", "teknisi"],
+  "/operasional/payroll": [],
+  "/operasional/komisi": ["admin"],
+  "/operasional/asisten-hr": [],
+
+  "/backup": [],
+  "/pengaturan/notifikasi": [],
 };
 
 export async function middleware(request: NextRequest) {
@@ -49,7 +77,8 @@ export async function middleware(request: NextRequest) {
       path.startsWith(route)
     );
 
-    if (matchedRestriction && staff) {
+    // super_admin selalu lolos, gak perlu dicek lagi
+    if (matchedRestriction && staff && staff.role !== "super_admin") {
       const [, allowedRoles] = matchedRestriction;
       if (!allowedRoles.includes(staff.role)) {
         return NextResponse.redirect(new URL("/", request.url));
