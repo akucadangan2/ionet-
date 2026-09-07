@@ -21,6 +21,8 @@ export default function KaryawanPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [copied, setCopied] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function loadData() {
     setLoading(true);
@@ -53,30 +55,42 @@ export default function KaryawanPage() {
   }
 
   async function handleSimpan() {
-    await fetch("/api/karyawan", {
-      method: "POST",
-      body: JSON.stringify({
-        id: editingId || undefined,
-        nama: form.nama,
-        jabatan: form.jabatan,
-        no_hp: form.no_hp,
-        gaji_pokok: parseFloat(form.gaji_pokok) || 0,
-        status: form.status,
-      }),
-    });
-    setShowForm(false);
-    loadData();
+    if (saving) return;
+    if (!form.nama.trim()) {
+      alert("Nama tidak boleh kosong");
+      return;
+    }
+    setSaving(true);
+    try {
+      await fetch("/api/karyawan", {
+        method: "POST",
+        body: JSON.stringify({
+          id: editingId || undefined,
+          nama: form.nama,
+          jabatan: form.jabatan,
+          no_hp: form.no_hp,
+          gaji_pokok: parseFloat(form.gaji_pokok) || 0,
+          status: form.status,
+        }),
+      });
+      setShowForm(false);
+      loadData();
+    } finally {
+      setSaving(false);
+    }
   }
 
-  // Menambahkan fungsi handleHapus yang sebelumnya belum ada
   async function handleHapus(id: string) {
     if (!confirm("Yakin ingin menghapus data karyawan ini?")) return;
-    
-    await fetch("/api/karyawan?id=" + id, {
-      method: "DELETE",
-    });
-    
-    loadData();
+    setDeletingId(id);
+    try {
+      await fetch("/api/karyawan?id=" + id, {
+        method: "DELETE",
+      });
+      loadData();
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   function handleCopyLink() {
@@ -103,8 +117,7 @@ export default function KaryawanPage() {
             {copied ? <Check size={15} /> : <Link2 size={15} />}
             {copied ? "Link Tersalin" : "Salin Link Absen"}
           </button>
-          
-          {/* Memperbaiki tag <a> yang hilang pembukanya */}
+
           <a
             href="/absensi"
             target="_blank"
@@ -115,6 +128,7 @@ export default function KaryawanPage() {
             <ExternalLink size={15} />
             Buka
           </a>
+          
           <button onClick={openTambah} className="px-4 py-2 rounded-lg text-sm font-medium text-white" style={{ background: "var(--color-accent)" }}>
             + Tambah Karyawan
           </button>
@@ -167,8 +181,22 @@ export default function KaryawanPage() {
           </div>
 
           <div className="flex gap-2">
-            <button onClick={handleSimpan} className="px-4 py-2 rounded-lg text-sm text-white" style={{ background: "var(--color-signal-good)" }}>Simpan</button>
-            <button onClick={function () { setShowForm(false); }} className="px-4 py-2 rounded-lg text-sm" style={{ border: "1px solid var(--color-border)" }}>Batal</button>
+            <button
+              onClick={handleSimpan}
+              disabled={saving}
+              className="px-4 py-2 rounded-lg text-sm text-white"
+              style={{ background: "var(--color-signal-good)", opacity: saving ? 0.6 : 1 }}
+            >
+              {saving ? "Menyimpan..." : "Simpan"}
+            </button>
+            <button
+              onClick={function () { setShowForm(false); }}
+              disabled={saving}
+              className="px-4 py-2 rounded-lg text-sm"
+              style={{ border: "1px solid var(--color-border)" }}
+            >
+              Batal
+            </button>
           </div>
         </div>
       )}
@@ -203,7 +231,14 @@ export default function KaryawanPage() {
                   </td>
                   <td className="p-3">
                     <button onClick={function () { openEdit(k); }} className="px-2 py-1 rounded text-sm mr-1" style={{ border: "1px solid var(--color-border)" }}>Edit</button>
-                    <button onClick={function () { handleHapus(k.id); }} className="px-2 py-1 rounded text-sm" style={{ border: "1px solid var(--color-signal-bad)", color: "var(--color-signal-bad)" }}>Hapus</button>
+                    <button
+                      onClick={function () { handleHapus(k.id); }}
+                      disabled={deletingId === k.id}
+                      className="px-2 py-1 rounded text-sm"
+                      style={{ border: "1px solid var(--color-signal-bad)", color: "var(--color-signal-bad)", opacity: deletingId === k.id ? 0.6 : 1 }}
+                    >
+                      {deletingId === k.id ? "..." : "Hapus"}
+                    </button>
                   </td>
                 </tr>
               );
