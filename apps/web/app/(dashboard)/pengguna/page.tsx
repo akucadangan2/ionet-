@@ -10,6 +10,13 @@ interface Staff {
   role: string;
   no_hp: string | null;
   auth_user_id: string;
+  karyawan_id: string | null;
+  karyawan?: { nama: string } | null;
+}
+
+interface KaryawanOpsi {
+  id: string;
+  nama: string;
 }
 
 const roleStyle: Record<string, { bg: string; color: string; label: string }> = {
@@ -20,6 +27,7 @@ const roleStyle: Record<string, { bg: string; color: string; label: string }> = 
 
 export default function PenggunaPage() {
   const [staffList, setStaffList] = useState<Staff[]>([]);
+  const [karyawanOpsi, setKaryawanOpsi] = useState<KaryawanOpsi[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [nama, setNama] = useState("");
@@ -27,6 +35,7 @@ export default function PenggunaPage() {
   const [noHp, setNoHp] = useState("");
   const [role, setRole] = useState("admin");
   const [password, setPassword] = useState("");
+  const [karyawanId, setKaryawanId] = useState("");
   const [saving, setSaving] = useState(false);
   const [resetTargetId, setResetTargetId] = useState<string | null>(null);
   const [resetPassword, setResetPassword] = useState("");
@@ -36,8 +45,19 @@ export default function PenggunaPage() {
 
   async function loadData() {
     setLoading(true);
-    const { data } = await supabase.from("staff").select("id, nama, role, no_hp, auth_user_id").order("nama");
-    setStaffList(data ?? []);
+    const { data } = await supabase
+      .from("staff")
+      .select("id, nama, role, no_hp, auth_user_id, karyawan_id, karyawan:karyawan_id(nama)")
+      .order("nama");
+    setStaffList((data as unknown as Staff[]) ?? []);
+
+    const { data: karyawanData } = await supabase
+      .from("karyawan")
+      .select("id, nama")
+      .eq("status", "aktif")
+      .order("nama");
+    setKaryawanOpsi(karyawanData ?? []);
+
     setLoading(false);
   }
 
@@ -54,7 +74,7 @@ export default function PenggunaPage() {
     setSaving(true);
     const res = await fetch("/api/staff/create", {
       method: "POST",
-      body: JSON.stringify({ nama, email, noHp, role, password: password || undefined }),
+      body: JSON.stringify({ nama, email, noHp, role, password: password || undefined, karyawanId: karyawanId || null }),
     });
     const json = await res.json();
     setSaving(false);
@@ -64,6 +84,7 @@ export default function PenggunaPage() {
     setEmail("");
     setNoHp("");
     setPassword("");
+    setKaryawanId("");
     loadData();
   }
 
@@ -158,6 +179,15 @@ export default function PenggunaPage() {
               <option value="teknisi">Teknisi</option>
             </select>
           </div>
+          <div>
+            <label className="text-xs block mb-1" style={{ color: "var(--color-ink-muted)" }}>Link ke Karyawan (opsional, buat fitur Absensi)</label>
+            <select value={karyawanId} onChange={(e) => setKaryawanId(e.target.value)} style={{ ...inputStyle, minWidth: 200 }}>
+              <option value="">- Tidak perlu link -</option>
+              {karyawanOpsi.map((k) => (
+                <option key={k.id} value={k.id}>{k.nama}</option>
+              ))}
+            </select>
+          </div>
           <button
             onClick={handleTambahStaff}
             disabled={saving}
@@ -172,7 +202,7 @@ export default function PenggunaPage() {
       <div className="rounded-lg overflow-hidden" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
         <table className="w-full">
           <thead>
-            <tr><th>Nama</th><th>Role</th><th>No HP</th><th>Aksi</th></tr>
+            <tr><th>Nama</th><th>Role</th><th>No HP</th><th>Link Karyawan</th><th>Aksi</th></tr>
           </thead>
           <tbody>
             {staffList.map((s) => {
@@ -189,6 +219,13 @@ export default function PenggunaPage() {
                     </span>
                   </td>
                   <td className="mono">{s.no_hp ?? "-"}</td>
+                  <td>
+                    {s.karyawan?.nama ? (
+                      <span style={{ color: "var(--color-signal-good)" }}>{s.karyawan.nama}</span>
+                    ) : (
+                      <span style={{ color: "var(--color-ink-muted)" }}>Belum di-link</span>
+                    )}
+                  </td>
                   <td>
                     {resetTargetId === s.auth_user_id ? (
                       <div className="flex gap-1 items-center">
@@ -246,7 +283,7 @@ export default function PenggunaPage() {
             })}
             {staffList.length === 0 && (
               <tr>
-                <td colSpan={4} className="text-center py-8" style={{ color: "var(--color-ink-muted)" }}>
+                <td colSpan={5} className="text-center py-8" style={{ color: "var(--color-ink-muted)" }}>
                   Belum ada staff terdaftar
                 </td>
               </tr>

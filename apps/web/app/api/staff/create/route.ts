@@ -9,7 +9,7 @@ const supabaseAdmin = createClient(
 );
 
 export async function POST(req: NextRequest) {
-  const { nama, email, noHp, role, password } = await req.json();
+  const { nama, email, noHp, role, password, karyawanId } = await req.json();
   const tempPassword = password && password.length >= 6 ? password : Math.random().toString(36).slice(-10);
 
   const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
     nama,
     role,
     no_hp: noHp,
+    karyawan_id: karyawanId || null,
   });
 
   if (staffError) {
