@@ -135,6 +135,7 @@ export async function checkStatus(orderId: string) {
       "Request-Timestamp": timestamp,
       "Signature": signature,
     },
+    signal: AbortSignal.timeout(8000),
   });
 
   return res.json();
