@@ -77,7 +77,7 @@ const menuGroups = [
       { href: "/operasional/karyawan", label: "Data Karyawan", icon: Users, roles: [] },
       { href: "/pengguna", label: "Pengguna", icon: UserCog, roles: [] },
       { href: "/operasional/absensi", label: "Rekap Absensi", icon: AlertTriangle, roles: ["admin", "teknisi"] },
-      { href: "/operasional/kasbon", label: "Kasbon", icon: Wallet, roles: ["admin", "teknisi"] },
+      { href: "/operasional/kasbon", label: "Kasbon", icon: Wallet, roles: [] },
       { href: "/operasional/payroll", label: "Payroll", icon: Wallet, roles: [] },
       { href: "/operasional/komisi", label: "Komisi", icon: Wallet, roles: ["admin"] },
       { href: "/operasional/asisten-hr", label: "Bot HR", icon: Bot, highlight: true, roles: [] },
