@@ -1,58 +1,46 @@
-// test-olt-auth.js - script diagnostik: coba beberapa pola login OLT sekaligus
-// Dipakai sekali buat nemuin cara autentikasi yang benar, bukan bagian dari
-// server.js yang jalan permanen - jalanin manual pas dibutuhkan aja.
+// test-olt-auth.js - script diagnostik: cari cara ambil token dulu, baru login
 const targets = ["192.168.44.102", "192.168.44.103"];
-const attempts = [
-  { desc: "form: username/password", body: "username=root&password=admin" },
-  { desc: "form: name/pwd", body: "name=root&pwd=admin" },
-  { desc: "form: user/pass", body: "user=root&pass=admin" },
-];
 
-function extractCookie(res) {
-  const raw = res.headers.get("set-cookie");
-  if (!raw) return null;
-  return raw.split(";")[0];
-}
+async function exploreToken(host) {
+  console.log(`\n=== ${host} ===`);
 
-async function testOne(host, attempt) {
-  const loginUrl = `http://${host}/gponont_mgmt?form=auth&port_id=0`;
+  // 1. Coba GET halaman utama, lihat apa ada token/cookie yang di-set
   try {
-    const res = await fetch(loginUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: attempt.body,
-      redirect: "manual",
-    });
-    const text = await res.text();
-    const cookie = extractCookie(res);
-
-    console.log(`\n--- ${host} | ${attempt.desc} ---`);
-    console.log("Status:", res.status);
-    console.log("Cookie didapat:", cookie || "(tidak ada)");
-    console.log("Response (200 char pertama):", text.slice(0, 200));
-
-    if (cookie) {
-      const dataRes = await fetch(`http://${host}/ontinfo_table`, {
-        headers: { Cookie: cookie },
-      });
-      const dataText = await dataRes.text();
-      const isSukses = dataText.includes('"code":1');
-      console.log("Coba ambil data pakai cookie ini -> berhasil?:", isSukses);
-      if (isSukses) {
-        console.log(">>> POLA INI BERHASIL <<<");
-      }
-    }
+    const res1 = await fetch(`http://${host}/`);
+    const text1 = await res1.text();
+    console.log("GET / -> Set-Cookie:", res1.headers.get("set-cookie") || "(tidak ada)");
+    const tokenMatch1 = text1.match(/token['"]?\s*[:=]\s*['"]?([a-zA-Z0-9_-]{6,})/i);
+    console.log("GET / -> kemungkinan token di HTML:", tokenMatch1 ? tokenMatch1[1] : "(tidak ketemu)");
   } catch (err) {
-    console.log(`\n--- ${host} | ${attempt.desc} ---`);
-    console.log("Error:", err.message);
+    console.log("GET / -> Error:", err.message);
+  }
+
+  // 2. Coba GET endpoint auth (bukan POST) - siapa tau dia balikin token by default
+  try {
+    const res2 = await fetch(`http://${host}/gponont_mgmt?form=auth&port_id=0`, { method: "GET" });
+    const text2 = await res2.text();
+    console.log("GET gponont_mgmt?form=auth -> Set-Cookie:", res2.headers.get("set-cookie") || "(tidak ada)");
+    console.log("GET gponont_mgmt?form=auth -> Response:", text2.slice(0, 300));
+  } catch (err) {
+    console.log("GET gponont_mgmt?form=auth -> Error:", err.message);
+  }
+
+  // 3. Coba endpoint umum yang sering dipakai buat generate token di device sejenis
+  const tokenEndpoints = ["/gponont_mgmt?form=token", "/gponont_mgmt?form=get_token", "/login.cgi", "/cgi-bin/luci"];
+  for (const ep of tokenEndpoints) {
+    try {
+      const res3 = await fetch(`http://${host}${ep}`);
+      const text3 = await res3.text();
+      console.log(`GET ${ep} -> Status ${res3.status}:`, text3.slice(0, 150));
+    } catch (err) {
+      console.log(`GET ${ep} -> Error:`, err.message);
+    }
   }
 }
 
 async function main() {
   for (const host of targets) {
-    for (const attempt of attempts) {
-      await testOne(host, attempt);
-    }
+    await exploreToken(host);
   }
   console.log("\n=== SELESAI ===");
 }
