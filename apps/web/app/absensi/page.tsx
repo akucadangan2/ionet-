@@ -21,6 +21,11 @@ export default function AbsensiPage() {
   const [success, setSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
+  const [role, setRole] = useState<string | null>(null);
+  const [lockedNama, setLockedNama] = useState<string | null>(null);
+  const [noMatch, setNoMatch] = useState(false);
+  const [checkingUser, setCheckingUser] = useState(true);
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -28,16 +33,41 @@ export default function AbsensiPage() {
   useEffect(function () {
     async function load() {
       const result = await supabase.from("karyawan").select("id, nama").eq("status", "aktif").order("nama");
-      setKaryawanList(result.data || []);
+      const list = result.data || [];
+      setKaryawanList(list);
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const staffResult = await supabase
+          .from("staff")
+          .select("nama, role")
+          .eq("auth_user_id", user.id)
+          .single();
+
+        if (staffResult.data) {
+          setRole(staffResult.data.role);
+
+          if (staffResult.data.role !== "super_admin") {
+            const namaStaff = (staffResult.data.nama || "").trim().toLowerCase();
+            const match = list.find(function (k) {
+              return k.nama.trim().toLowerCase() === namaStaff;
+            });
+            if (match) {
+              setSelectedKaryawan(match.id);
+              setLockedNama(match.nama);
+            } else {
+              setNoMatch(true);
+            }
+          }
+        }
+      }
+      setCheckingUser(false);
     }
     load();
   }, []);
 
   useEffect(function () {
     if (!navigator.geolocation) {
-
-
-      
       setLocationError("Browser tidak mendukung GPS");
       return;
     }
@@ -136,17 +166,35 @@ export default function AbsensiPage() {
 
         <div className="rounded-lg p-5" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
           <label className="text-xs font-medium mb-2 block" style={{ color: "var(--color-ink-muted)" }}>Nama Karyawan</label>
-          <select
-            value={selectedKaryawan}
-            onChange={function (e) { setSelectedKaryawan(e.target.value); }}
-            className="w-full mb-4"
-            style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "10px 14px" }}
-          >
-            <option value="">- Pilih Nama -</option>
-            {karyawanList.map(function (k) {
-              return <option key={k.id} value={k.id}>{k.nama}</option>;
-            })}
-          </select>
+
+          {checkingUser ? (
+            <p className="text-sm mb-4" style={{ color: "var(--color-ink-muted)" }}>Memuat...</p>
+          ) : lockedNama ? (
+            <div
+              className="w-full mb-4"
+              style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "10px 14px", background: "var(--color-bg)", color: "var(--color-ink)" }}
+            >
+              {lockedNama}
+            </div>
+          ) : (
+            <select
+              value={selectedKaryawan}
+              onChange={function (e) { setSelectedKaryawan(e.target.value); }}
+              className="w-full mb-4"
+              style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "10px 14px" }}
+            >
+              <option value="">- Pilih Nama -</option>
+              {karyawanList.map(function (k) {
+                return <option key={k.id} value={k.id}>{k.nama}</option>;
+              })}
+            </select>
+          )}
+
+          {!checkingUser && noMatch && (
+            <p className="text-sm mb-4" style={{ color: "var(--color-signal-bad)" }}>
+              Nama akun kamu tidak cocok dengan data Karyawan manapun. Hubungi Super Admin untuk disamakan namanya dulu.
+            </p>
+          )}
 
           <div className="flex gap-2 mb-4">
             <button
