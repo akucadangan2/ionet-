@@ -25,6 +25,8 @@ import {
   Bot,
   Bell,
   Database,
+  Calendar,
+  ClipboardEdit,
 } from "lucide-react";
 
 const menuGroups = [

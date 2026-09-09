@@ -27,6 +27,8 @@ import {
   Database,
   ChevronDown,
   ChevronRight,
+  Calendar,
+  ClipboardEdit,
 } from "lucide-react";
 
 const menuGroups = [

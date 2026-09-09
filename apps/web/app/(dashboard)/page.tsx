@@ -22,6 +22,8 @@ import {
   UserCog,
   Zap,
   Bot,
+  Calendar,
+  ClipboardEdit,
 } from "lucide-react";
 
 function getGreeting() {
