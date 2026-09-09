@@ -22,6 +22,28 @@ export async function POST(req: NextRequest) {
     const bulan = Number(body.bulan);
     const tahun = Number(body.tahun);
     const potonganPerAlpa = Number(body.potonganPerAlpa) || 0;
+    const confirmTimpaDibayar = Boolean(body.confirmTimpaDibayar);
+
+    // Proteksi: cegah nimpa diam-diam payroll yang udah ditandai dibayar
+    if (!confirmTimpaDibayar) {
+      const { data: sudahDibayar } = await supabase
+        .from("payroll")
+        .select("id")
+        .eq("bulan", bulan)
+        .eq("tahun", tahun)
+        .eq("status", "dibayar");
+
+      if (sudahDibayar && sudahDibayar.length > 0) {
+        return NextResponse.json(
+          {
+            message: `${sudahDibayar.length} payroll bulan ini sudah ditandai dibayar. Kirim ulang dengan confirmTimpaDibayar: true kalau tetap mau hitung ulang.`,
+            perluKonfirmasi: true,
+            jumlahSudahDibayar: sudahDibayar.length,
+          },
+          { status: 409 }
+        );
+      }
+    }
 
     const { data: karyawanList } = await supabase
       .from("karyawan")
@@ -41,9 +63,14 @@ export async function POST(req: NextRequest) {
         .gte("tanggal", tanggalAwal)
         .lte("tanggal", tanggalAkhir);
 
-      const jumlahHadir = (absensiResult.data || []).filter((a) => a.status === "hadir").length;
-      const jumlahAlpa = (absensiResult.data || []).filter((a) => a.status === "alpa").length;
-      const potonganAlpa = jumlahAlpa * potonganPerAlpa;
+      const semuaAbsensi = absensiResult.data || [];
+      const jumlahHadir = semuaAbsensi.filter((a) => a.status === "hadir").length;
+      const jumlahAlpa = semuaAbsensi.filter((a) => a.status === "alpa").length;
+      const jumlahIzin = semuaAbsensi.filter((a) => a.status === "izin").length;
+      const jumlahCuti = semuaAbsensi.filter((a) => a.status === "cuti").length;
+
+      // Alpa dan Izin sama-sama kepotong gaji, Cuti tidak dipotong
+      const potonganAlpa = (jumlahAlpa + jumlahIzin) * potonganPerAlpa;
 
       const kasbonResult = await supabase
         .from("kasbon")
@@ -66,7 +93,7 @@ export async function POST(req: NextRequest) {
         tahun,
         gaji_pokok: k.gaji_pokok,
         jumlah_hadir: jumlahHadir,
-        jumlah_alpa: jumlahAlpa,
+        jumlah_alpa: jumlahAlpa + jumlahIzin,
         potongan_alpa: potonganAlpa,
         potongan_kasbon: potonganKasbon,
         total_gaji: totalGaji,
@@ -77,7 +104,7 @@ export async function POST(req: NextRequest) {
         .from("payroll")
         .upsert(payload, { onConflict: "karyawan_id,bulan,tahun" });
 
-      if (!error) results.push({ nama: k.nama, totalGaji });
+      if (!error) results.push({ nama: k.nama, totalGaji, jumlahAlpa, jumlahIzin, jumlahCuti });
     }
 
     return NextResponse.json({ message: results.length + " payroll berhasil digenerate", results });

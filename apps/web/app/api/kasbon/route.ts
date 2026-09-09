@@ -27,6 +27,20 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   const body = await req.json();
+
+  // Mode 1: update nominal cicilan per bulan (bisa diedit kapan saja,
+  // terpisah dari proses setuju/tolak)
+  if (body.cicilanPerBulan !== undefined && body.status === undefined) {
+    const { error } = await supabase
+      .from("kasbon")
+      .update({ cicilan_per_bulan: body.cicilanPerBulan })
+      .eq("id", body.id);
+
+    if (error) return NextResponse.json({ message: error.message }, { status: 500 });
+    return NextResponse.json({ message: "cicilan per bulan berhasil diupdate" });
+  }
+
+  // Mode 2: setuju/tolak pengajuan (perilaku asli, tidak diubah)
   const payload: any = {
     status: body.status,
     tanggal_diproses: new Date().toISOString(),

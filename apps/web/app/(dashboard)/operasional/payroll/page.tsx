@@ -43,14 +43,34 @@ export default function PayrollPage() {
     loadData();
   }, [bulan, tahun]);
 
-  async function handleGenerate() {
+  async function generatePayroll(confirmTimpaDibayar: boolean) {
     setGenerating(true);
-    await fetch("/api/payroll", {
-      method: "POST",
-      body: JSON.stringify({ bulan, tahun, potonganPerAlpa: parseFloat(potonganPerAlpa) }),
-    });
-    setGenerating(false);
-    loadData();
+    try {
+      const res = await fetch("/api/payroll", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bulan, tahun, potonganPerAlpa: parseFloat(potonganPerAlpa), confirmTimpaDibayar }),
+      });
+      const json = await res.json();
+
+      if (res.status === 409 && json.perluKonfirmasi) {
+        const lanjut = window.confirm(
+          `${json.jumlahSudahDibayar} payroll bulan ini SUDAH ditandai dibayar. Kalau lanjut generate ulang, angka gaji yang udah dibayar itu bisa berubah. Yakin lanjut?`
+        );
+        if (lanjut) {
+          await generatePayroll(true);
+        }
+        return;
+      }
+
+      loadData();
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function handleGenerate() {
+    await generatePayroll(false);
   }
 
   async function handleTandaiDibayar(id: string) {
@@ -65,7 +85,7 @@ export default function PayrollPage() {
     <div>
       <h1 className="text-2xl font-semibold mb-1">Payroll</h1>
       <p className="text-sm mb-6" style={{ color: "var(--color-ink-muted)" }}>
-        Hitung gaji otomatis berdasarkan absensi dan cicilan kasbon
+        Hitung gaji otomatis berdasarkan absensi dan cicilan kasbon. Alpa dan Izin sama-sama kepotong, Cuti tidak dipotong.
       </p>
 
       <div className="p-5 rounded-lg mb-6" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
@@ -83,7 +103,7 @@ export default function PayrollPage() {
             <input type="number" value={tahun} onChange={function (e) { setTahun(Number(e.target.value)); }} style={{ ...inputStyle, width: 100 }} />
           </div>
           <div>
-            <label className="text-xs block mb-1" style={{ color: "var(--color-ink-muted)" }}>Potongan per Hari Alpa</label>
+            <label className="text-xs block mb-1" style={{ color: "var(--color-ink-muted)" }}>Potongan per Hari Alpa/Izin</label>
             <input type="number" value={potonganPerAlpa} onChange={function (e) { setPotonganPerAlpa(e.target.value); }} style={{ ...inputStyle, width: 150 }} />
           </div>
           <button
@@ -112,7 +132,7 @@ export default function PayrollPage() {
                   <th className="text-left p-3 text-sm">Nama</th>
                   <th className="text-left p-3 text-sm">Gaji Pokok</th>
                   <th className="text-left p-3 text-sm">Hadir</th>
-                  <th className="text-left p-3 text-sm">Alpa</th>
+                  <th className="text-left p-3 text-sm">Alpa/Izin</th>
                   <th className="text-left p-3 text-sm">Potongan Alpa</th>
                   <th className="text-left p-3 text-sm">Potongan Kasbon</th>
                   <th className="text-left p-3 text-sm">Total Gaji</th>

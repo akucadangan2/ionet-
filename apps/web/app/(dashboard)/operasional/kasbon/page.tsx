@@ -9,6 +9,7 @@ interface KasbonRecord {
   alasan: string | null;
   status: string;
   sisa_saldo: number | null;
+  cicilan_per_bulan: number | null;
   tanggal_pengajuan: string;
   karyawan: { nama: string; jabatan: string } | null;
 }
@@ -28,6 +29,9 @@ export default function KasbonAdminPage() {
   const [records, setRecords] = useState<KasbonRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [editingCicilanId, setEditingCicilanId] = useState<string | null>(null);
+  const [cicilanInput, setCicilanInput] = useState("");
+  const [savingCicilan, setSavingCicilan] = useState(false);
 
   function handleCopyLink() {
     const url = window.location.origin + "/kasbon";
@@ -56,7 +60,28 @@ export default function KasbonAdminPage() {
     loadData();
   }
 
+  function openEditCicilan(r: KasbonRecord) {
+    setEditingCicilanId(r.id);
+    setCicilanInput(r.cicilan_per_bulan ? r.cicilan_per_bulan.toString() : "");
+  }
+
+  async function handleSimpanCicilan(id: string) {
+    setSavingCicilan(true);
+    try {
+      await fetch("/api/kasbon", {
+        method: "PATCH",
+        body: JSON.stringify({ id, cicilanPerBulan: parseFloat(cicilanInput) || 0 }),
+      });
+      setEditingCicilanId(null);
+      loadData();
+    } finally {
+      setSavingCicilan(false);
+    }
+  }
+
   if (loading) return <p style={{ color: "var(--color-ink-muted)" }}>Memuat...</p>;
+
+  const inputStyle = { border: "1px solid var(--color-border)", borderRadius: 8, padding: "4px 8px" };
 
   return (
     <div>
@@ -71,7 +96,7 @@ export default function KasbonAdminPage() {
             {copied ? <Check size={15} /> : <Link2 size={15} />}
             {copied ? "Link Tersalin" : "Salin Link Pengajuan"}
           </button>
-          
+
           <a
             href="/kasbon"
             target="_blank"
@@ -84,9 +109,9 @@ export default function KasbonAdminPage() {
           </a>
         </div>
       </div>
-      
+
       <p className="text-sm mb-6" style={{ color: "var(--color-ink-muted)" }}>
-        Bagikan link "Salin Link Pengajuan" ke karyawan lewat WhatsApp/grup
+        Bagikan link "Salin Link Pengajuan" ke karyawan lewat WhatsApp/grup. Cicilan per Bulan bisa diubah kapan saja - itu yang otomatis kepotong tiap kali Payroll di-generate.
       </p>
 
       <div className="rounded-lg overflow-hidden" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
@@ -97,6 +122,7 @@ export default function KasbonAdminPage() {
               <th className="text-left p-3 text-sm">Jumlah</th>
               <th className="text-left p-3 text-sm">Alasan</th>
               <th className="text-left p-3 text-sm">Sisa Saldo</th>
+              <th className="text-left p-3 text-sm">Cicilan/Bulan</th>
               <th className="text-left p-3 text-sm">Status</th>
               <th className="text-left p-3 text-sm">Aksi</th>
             </tr>
@@ -109,6 +135,43 @@ export default function KasbonAdminPage() {
                   <td className="p-3 text-sm">{formatRupiah(r.jumlah)}</td>
                   <td className="p-3 text-sm" style={{ color: "var(--color-ink-muted)" }}>{r.alasan || "-"}</td>
                   <td className="p-3 text-sm">{r.sisa_saldo !== null ? formatRupiah(r.sisa_saldo) : "-"}</td>
+                  <td className="p-3 text-sm">
+                    {editingCicilanId === r.id ? (
+                      <div className="flex gap-1 items-center">
+                        <input
+                          type="number"
+                          value={cicilanInput}
+                          onChange={function (e) { setCicilanInput(e.target.value); }}
+                          style={{ ...inputStyle, width: 110 }}
+                          autoFocus
+                        />
+                        <button
+                          onClick={function () { handleSimpanCicilan(r.id); }}
+                          disabled={savingCicilan}
+                          className="px-2 py-1 rounded text-xs text-white"
+                          style={{ background: "var(--color-signal-good)" }}
+                        >
+                          {savingCicilan ? "..." : "Simpan"}
+                        </button>
+                        <button
+                          onClick={function () { setEditingCicilanId(null); }}
+                          className="px-2 py-1 rounded text-xs"
+                          style={{ border: "1px solid var(--color-border)" }}
+                        >
+                          Batal
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={function () { openEditCicilan(r); }}
+                        className="text-sm"
+                        style={{ color: r.cicilan_per_bulan ? "var(--color-ink)" : "var(--color-ink-muted)", textDecoration: "underline dotted" }}
+                        title="Klik untuk ubah cicilan per bulan"
+                      >
+                        {r.cicilan_per_bulan ? formatRupiah(r.cicilan_per_bulan) : "Belum diatur"}
+                      </button>
+                    )}
+                  </td>
                   <td className="p-3 text-sm">
                     <span className="px-2 py-1 rounded text-xs font-medium" style={{ background: statusStyle[r.status]?.bg, color: statusStyle[r.status]?.color }}>
                       {r.status}
@@ -139,7 +202,7 @@ export default function KasbonAdminPage() {
             })}
             {records.length === 0 && (
               <tr>
-                <td colSpan={6} className="text-center py-8 text-sm" style={{ color: "var(--color-ink-muted)" }}>
+                <td colSpan={7} className="text-center py-8 text-sm" style={{ color: "var(--color-ink-muted)" }}>
                   Belum ada pengajuan kasbon
                 </td>
               </tr>

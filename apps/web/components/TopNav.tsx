@@ -68,6 +68,8 @@ const menuGroups = [
       { href: "/operasional/komisi", label: "Komisi", icon: Wallet, roles: ["admin"] },
       { href: "/backup", label: "Backup Lokal", icon: Database, roles: [] },
       { href: "/operasional/asisten-hr", label: "Bot HR", icon: Bot, highlight: true, roles: [] },
+      { href: "/operasional/hari-libur", label: "Hari Libur", icon: Calendar, roles: [] },
+      { href: "/operasional/koreksi-absensi", label: "Koreksi Absensi", icon: ClipboardEdit, roles: [] },
     ],
   },
   {
