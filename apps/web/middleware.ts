@@ -34,6 +34,7 @@ const ROLE_RESTRICTED_ROUTES: Record<string, string[]> = {
   "/operasional/asisten-hr": [],
   "/operasional/hari-libur": [],
   "/operasional/koreksi-absensi": [],
+  "/operasional/slip-gaji": [],
 
   "/backup": [],
   "/pengaturan/notifikasi": [],

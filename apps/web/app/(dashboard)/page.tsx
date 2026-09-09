@@ -24,6 +24,7 @@ import {
   Bot,
   Calendar,
   ClipboardEdit,
+  Receipt
 } from "lucide-react";
 
 function getGreeting() {
@@ -85,6 +86,7 @@ const menuGroups = [
       { href: "/operasional/asisten-hr", label: "Bot HR", icon: Bot, highlight: true, roles: [] },
       { href: "/operasional/hari-libur", label: "Hari Libur", icon: Calendar, roles: [] },
       { href: "/operasional/koreksi-absensi", label: "Koreksi Absensi", icon: ClipboardEdit, roles: [] },
+      { href: "/operasional/slip-gaji", label: "Slip Gaji", icon: Receipt, roles: [] },
     ],
   },
 ];
