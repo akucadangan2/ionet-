@@ -15,6 +15,8 @@ export async function POST(req: NextRequest) {
     no_hp: body.no_hp || null,
     gaji_pokok: body.gaji_pokok || 0,
     status: body.status || "aktif",
+    shift: body.shift || null,
+    potongan_alpa: body.potongan_alpa === "" || body.potongan_alpa === undefined ? null : body.potongan_alpa,
   };
 
   const { error } = body.id

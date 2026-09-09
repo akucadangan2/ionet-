@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const bulan = Number(body.bulan);
     const tahun = Number(body.tahun);
-    const potonganPerAlpa = Number(body.potonganPerAlpa) || 0;
+    const potonganDefault = Number(body.potonganPerAlpa) || 0;
     const confirmTimpaDibayar = Boolean(body.confirmTimpaDibayar);
 
     // Proteksi: cegah nimpa diam-diam payroll yang udah ditandai dibayar
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
 
     const { data: karyawanList } = await supabase
       .from("karyawan")
-      .select("id, nama, gaji_pokok")
+      .select("id, nama, gaji_pokok, potongan_alpa")
       .eq("status", "aktif");
 
     const tanggalAwal = `${tahun}-${String(bulan).padStart(2, "0")}-01`;
@@ -68,6 +68,12 @@ export async function POST(req: NextRequest) {
       const jumlahAlpa = semuaAbsensi.filter((a) => a.status === "alpa").length;
       const jumlahIzin = semuaAbsensi.filter((a) => a.status === "izin").length;
       const jumlahCuti = semuaAbsensi.filter((a) => a.status === "cuti").length;
+
+      // Pakai potongan khusus karyawan ini kalau udah diatur di Data Karyawan,
+      // kalau belum (null) baru pakai angka default dari halaman Payroll
+      const potonganPerAlpa = k.potongan_alpa !== null && k.potongan_alpa !== undefined
+        ? Number(k.potongan_alpa)
+        : potonganDefault;
 
       // Alpa dan Izin sama-sama kepotong gaji, Cuti tidak dipotong
       const potonganAlpa = (jumlahAlpa + jumlahIzin) * potonganPerAlpa;
@@ -104,7 +110,7 @@ export async function POST(req: NextRequest) {
         .from("payroll")
         .upsert(payload, { onConflict: "karyawan_id,bulan,tahun" });
 
-      if (!error) results.push({ nama: k.nama, totalGaji, jumlahAlpa, jumlahIzin, jumlahCuti });
+      if (!error) results.push({ nama: k.nama, totalGaji, jumlahAlpa, jumlahIzin, jumlahCuti, potonganPerAlpaDipakai: potonganPerAlpa });
     }
 
     return NextResponse.json({ message: results.length + " payroll berhasil digenerate", results });

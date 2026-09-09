@@ -10,9 +10,17 @@ interface Karyawan {
   no_hp: string | null;
   gaji_pokok: number;
   status: string;
+  shift: string | null;
+  potongan_alpa: number | null;
 }
 
-const emptyForm = { nama: "", jabatan: "teknisi", no_hp: "", gaji_pokok: "", status: "aktif" };
+const emptyForm = { nama: "", jabatan: "teknisi", no_hp: "", gaji_pokok: "", status: "aktif", shift: "", potongan_alpa: "" };
+
+const shiftLabel: Record<string, string> = { pagi: "Pagi", siang: "Siang" };
+
+function formatRupiah(n: number) {
+  return "Rp " + n.toLocaleString("id-ID");
+}
 
 export default function KaryawanPage() {
   const [list, setList] = useState<Karyawan[]>([]);
@@ -49,6 +57,8 @@ export default function KaryawanPage() {
       no_hp: k.no_hp || "",
       gaji_pokok: k.gaji_pokok.toString(),
       status: k.status,
+      shift: k.shift || "",
+      potongan_alpa: k.potongan_alpa !== null ? k.potongan_alpa.toString() : "",
     });
     setEditingId(k.id);
     setShowForm(true);
@@ -71,6 +81,8 @@ export default function KaryawanPage() {
           no_hp: form.no_hp,
           gaji_pokok: parseFloat(form.gaji_pokok) || 0,
           status: form.status,
+          shift: form.shift || null,
+          potongan_alpa: form.potongan_alpa === "" ? null : parseFloat(form.potongan_alpa),
         }),
       });
       setShowForm(false);
@@ -180,6 +192,27 @@ export default function KaryawanPage() {
             />
           </div>
 
+          <div className="flex gap-2 mb-3">
+            <div style={{ flex: 1 }}>
+              <label className="text-xs block mb-1" style={{ color: "var(--color-ink-muted)" }}>Shift</label>
+              <select value={form.shift} onChange={function (e) { setForm({ ...form, shift: e.target.value }); }} style={{ ...inputStyle, width: "100%" }}>
+                <option value="">- Belum diatur -</option>
+                <option value="pagi">Pagi</option>
+                <option value="siang">Siang</option>
+              </select>
+            </div>
+            <div style={{ flex: 1 }}>
+              <label className="text-xs block mb-1" style={{ color: "var(--color-ink-muted)" }}>Potongan per Hari Alpa/Izin</label>
+              <input
+                placeholder="Kosongkan = pakai default Payroll"
+                type="number"
+                value={form.potongan_alpa}
+                onChange={function (e) { setForm({ ...form, potongan_alpa: e.target.value }); }}
+                style={{ ...inputStyle, width: "100%" }}
+              />
+            </div>
+          </div>
+
           <div className="flex gap-2">
             <button
               onClick={handleSimpan}
@@ -207,8 +240,10 @@ export default function KaryawanPage() {
             <tr style={{ background: "var(--color-bg)" }}>
               <th className="text-left p-3 text-sm">Nama</th>
               <th className="text-left p-3 text-sm">Jabatan</th>
+              <th className="text-left p-3 text-sm">Shift</th>
               <th className="text-left p-3 text-sm">No HP</th>
               <th className="text-left p-3 text-sm">Gaji Pokok</th>
+              <th className="text-left p-3 text-sm">Potongan Alpa/Izin</th>
               <th className="text-left p-3 text-sm">Status</th>
               <th className="text-left p-3 text-sm">Aksi</th>
             </tr>
@@ -219,8 +254,20 @@ export default function KaryawanPage() {
                 <tr key={k.id} style={{ borderTop: "1px solid var(--color-border)" }}>
                   <td className="p-3 text-sm">{k.nama}</td>
                   <td className="p-3 text-sm capitalize">{k.jabatan}</td>
+                  <td className="p-3 text-sm">
+                    {k.shift ? (
+                      <span className="px-2 py-1 rounded text-xs font-medium" style={{ background: "var(--color-bg)", color: "var(--color-ink)" }}>
+                        {shiftLabel[k.shift] || k.shift}
+                      </span>
+                    ) : (
+                      <span style={{ color: "var(--color-ink-muted)" }}>-</span>
+                    )}
+                  </td>
                   <td className="p-3 text-sm">{k.no_hp || "-"}</td>
-                  <td className="p-3 text-sm">Rp {k.gaji_pokok.toLocaleString("id-ID")}</td>
+                  <td className="p-3 text-sm">{formatRupiah(k.gaji_pokok)}</td>
+                  <td className="p-3 text-sm">
+                    {k.potongan_alpa !== null ? formatRupiah(k.potongan_alpa) : <span style={{ color: "var(--color-ink-muted)" }}>Default Payroll</span>}
+                  </td>
                   <td className="p-3 text-sm">
                     <span
                       className="px-2 py-1 rounded text-xs font-medium"
@@ -245,7 +292,7 @@ export default function KaryawanPage() {
             })}
             {list.length === 0 && (
               <tr>
-                <td colSpan={6} className="text-center py-8 text-sm" style={{ color: "var(--color-ink-muted)" }}>
+                <td colSpan={8} className="text-center py-8 text-sm" style={{ color: "var(--color-ink-muted)" }}>
                   Belum ada data karyawan
                 </td>
               </tr>
