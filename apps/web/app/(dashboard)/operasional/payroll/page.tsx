@@ -10,6 +10,7 @@ interface PayrollRecord {
   jumlah_hadir: number;
   jumlah_alpa: number;
   potongan_alpa: number;
+  potongan_bpjs: number;
   potongan_kasbon: number;
   total_gaji: number;
   status: string;
@@ -27,6 +28,8 @@ export default function PayrollPage() {
   const [bulan, setBulan] = useState(now.getMonth() + 1);
   const [tahun, setTahun] = useState(now.getFullYear());
   const [potonganPerAlpa, setPotonganPerAlpa] = useState("100000");
+  const [persenBpjsKesehatan, setPersenBpjsKesehatan] = useState("1");
+  const [persenBpjsKetenagakerjaan, setPersenBpjsKetenagakerjaan] = useState("3");
   const [records, setRecords] = useState<PayrollRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -49,7 +52,14 @@ export default function PayrollPage() {
       const res = await fetch("/api/payroll", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bulan, tahun, potonganPerAlpa: parseFloat(potonganPerAlpa), confirmTimpaDibayar }),
+        body: JSON.stringify({
+          bulan,
+          tahun,
+          potonganPerAlpa: parseFloat(potonganPerAlpa),
+          persenBpjsKesehatan: parseFloat(persenBpjsKesehatan) || 0,
+          persenBpjsKetenagakerjaan: parseFloat(persenBpjsKetenagakerjaan) || 0,
+          confirmTimpaDibayar,
+        }),
       });
       const json = await res.json();
 
@@ -85,11 +95,11 @@ export default function PayrollPage() {
     <div>
       <h1 className="text-2xl font-semibold mb-1">Payroll</h1>
       <p className="text-sm mb-6" style={{ color: "var(--color-ink-muted)" }}>
-        Hitung gaji otomatis berdasarkan absensi dan cicilan kasbon. Alpa dan Izin sama-sama kepotong, Cuti tidak dipotong.
+        Hitung gaji otomatis berdasarkan absensi, BPJS, dan cicilan kasbon. Alpa dan Izin sama-sama kepotong, Cuti tidak dipotong.
       </p>
 
       <div className="p-5 rounded-lg mb-6" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
-        <div className="flex gap-3 items-end flex-wrap">
+        <div className="flex gap-3 items-end flex-wrap mb-3">
           <div>
             <label className="text-xs block mb-1" style={{ color: "var(--color-ink-muted)" }}>Bulan</label>
             <select value={bulan} onChange={function (e) { setBulan(Number(e.target.value)); }} style={inputStyle}>
@@ -103,8 +113,19 @@ export default function PayrollPage() {
             <input type="number" value={tahun} onChange={function (e) { setTahun(Number(e.target.value)); }} style={{ ...inputStyle, width: 100 }} />
           </div>
           <div>
-            <label className="text-xs block mb-1" style={{ color: "var(--color-ink-muted)" }}>Potongan per Hari Alpa/Izin</label>
+            <label className="text-xs block mb-1" style={{ color: "var(--color-ink-muted)" }}>Potongan per Hari Alpa/Izin (default)</label>
             <input type="number" value={potonganPerAlpa} onChange={function (e) { setPotonganPerAlpa(e.target.value); }} style={{ ...inputStyle, width: 150 }} />
+          </div>
+        </div>
+
+        <div className="flex gap-3 items-end flex-wrap">
+          <div>
+            <label className="text-xs block mb-1" style={{ color: "var(--color-ink-muted)" }}>% BPJS Kesehatan (dari gaji pokok)</label>
+            <input type="number" step="0.1" value={persenBpjsKesehatan} onChange={function (e) { setPersenBpjsKesehatan(e.target.value); }} style={{ ...inputStyle, width: 130 }} />
+          </div>
+          <div>
+            <label className="text-xs block mb-1" style={{ color: "var(--color-ink-muted)" }}>% BPJS Ketenagakerjaan (dari gaji pokok)</label>
+            <input type="number" step="0.1" value={persenBpjsKetenagakerjaan} onChange={function (e) { setPersenBpjsKetenagakerjaan(e.target.value); }} style={{ ...inputStyle, width: 130 }} />
           </div>
           <button
             onClick={handleGenerate}
@@ -134,6 +155,7 @@ export default function PayrollPage() {
                   <th className="text-left p-3 text-sm">Hadir</th>
                   <th className="text-left p-3 text-sm">Alpa/Izin</th>
                   <th className="text-left p-3 text-sm">Potongan Alpa</th>
+                  <th className="text-left p-3 text-sm">Potongan BPJS</th>
                   <th className="text-left p-3 text-sm">Potongan Kasbon</th>
                   <th className="text-left p-3 text-sm">Total Gaji</th>
                   <th className="text-left p-3 text-sm">Status</th>
@@ -149,6 +171,7 @@ export default function PayrollPage() {
                       <td className="p-3 text-sm">{r.jumlah_hadir}</td>
                       <td className="p-3 text-sm">{r.jumlah_alpa}</td>
                       <td className="p-3 text-sm" style={{ color: "var(--color-signal-bad)" }}>-{formatRupiah(r.potongan_alpa)}</td>
+                      <td className="p-3 text-sm" style={{ color: "var(--color-signal-bad)" }}>-{formatRupiah(r.potongan_bpjs || 0)}</td>
                       <td className="p-3 text-sm" style={{ color: "var(--color-signal-bad)" }}>-{formatRupiah(r.potongan_kasbon)}</td>
                       <td className="p-3 text-sm font-semibold">{formatRupiah(r.total_gaji)}</td>
                       <td className="p-3 text-sm">
@@ -175,7 +198,7 @@ export default function PayrollPage() {
                 })}
                 {records.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="text-center py-8 text-sm" style={{ color: "var(--color-ink-muted)" }}>
+                    <td colSpan={10} className="text-center py-8 text-sm" style={{ color: "var(--color-ink-muted)" }}>
                       Belum ada payroll untuk periode ini, klik "Generate Payroll" di atas
                     </td>
                   </tr>

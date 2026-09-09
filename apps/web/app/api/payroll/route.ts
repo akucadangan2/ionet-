@@ -22,6 +22,8 @@ export async function POST(req: NextRequest) {
     const bulan = Number(body.bulan);
     const tahun = Number(body.tahun);
     const potonganDefault = Number(body.potonganPerAlpa) || 0;
+    const persenBpjsKesehatan = Number(body.persenBpjsKesehatan) || 0;
+    const persenBpjsKetenagakerjaan = Number(body.persenBpjsKetenagakerjaan) || 0;
     const confirmTimpaDibayar = Boolean(body.confirmTimpaDibayar);
 
     // Proteksi: cegah nimpa diam-diam payroll yang udah ditandai dibayar
@@ -78,6 +80,11 @@ export async function POST(req: NextRequest) {
       // Alpa dan Izin sama-sama kepotong gaji, Cuti tidak dipotong
       const potonganAlpa = (jumlahAlpa + jumlahIzin) * potonganPerAlpa;
 
+      // BPJS: persentase sama rata semua karyawan, tapi nominalnya beda
+      // karena dihitung dari gaji pokok masing-masing
+      const gajiPokok = Number(k.gaji_pokok);
+      const potonganBpjs = gajiPokok * ((persenBpjsKesehatan + persenBpjsKetenagakerjaan) / 100);
+
       const kasbonResult = await supabase
         .from("kasbon")
         .select("cicilan_per_bulan, sisa_saldo")
@@ -91,7 +98,7 @@ export async function POST(req: NextRequest) {
         potonganKasbon += cicilan;
       }
 
-      const totalGaji = Number(k.gaji_pokok) - potonganAlpa - potonganKasbon;
+      const totalGaji = gajiPokok - potonganAlpa - potonganBpjs - potonganKasbon;
 
       const payload = {
         karyawan_id: k.id,
@@ -101,6 +108,7 @@ export async function POST(req: NextRequest) {
         jumlah_hadir: jumlahHadir,
         jumlah_alpa: jumlahAlpa + jumlahIzin,
         potongan_alpa: potonganAlpa,
+        potongan_bpjs: potonganBpjs,
         potongan_kasbon: potonganKasbon,
         total_gaji: totalGaji,
         status: "draft",
@@ -110,7 +118,7 @@ export async function POST(req: NextRequest) {
         .from("payroll")
         .upsert(payload, { onConflict: "karyawan_id,bulan,tahun" });
 
-      if (!error) results.push({ nama: k.nama, totalGaji, jumlahAlpa, jumlahIzin, jumlahCuti, potonganPerAlpaDipakai: potonganPerAlpa });
+      if (!error) results.push({ nama: k.nama, totalGaji, jumlahAlpa, jumlahIzin, jumlahCuti, potonganBpjs });
     }
 
     return NextResponse.json({ message: results.length + " payroll berhasil digenerate", results });
