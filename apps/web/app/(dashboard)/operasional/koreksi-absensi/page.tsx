@@ -59,11 +59,16 @@ export default function KoreksiAbsensiPage() {
   async function handleUbahStatus(karyawanId: string, newStatus: string) {
     setSavingId(karyawanId);
     try {
-      await fetch("/api/absensi/koreksi", {
+      const res = await fetch("/api/absensi/koreksi", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ karyawanId, tanggal, status: newStatus }),
       });
+      const json = await res.json();
+      if (!res.ok) {
+        alert("Gagal ubah status: " + json.message);
+        return;
+      }
       loadData();
     } finally {
       setSavingId(null);
