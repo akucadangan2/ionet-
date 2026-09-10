@@ -24,7 +24,7 @@ import {
   Bot,
   Calendar,
   ClipboardEdit,
-  Receipt
+  Receipt,
 } from "lucide-react";
 
 function getGreeting() {
