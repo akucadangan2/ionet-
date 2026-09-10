@@ -27,6 +27,7 @@ import {
   Database,
   Calendar,
   ClipboardEdit,
+  Clock,
   Receipt,
 } from "lucide-react";
 
@@ -80,6 +81,7 @@ const menuGroups = [
     label: "Pengaturan",
     items: [
       { href: "/pengaturan/notifikasi", label: "Notifikasi WA", icon: Bell, roles: [] },
+      { href: "/pengaturan/jam-kerja", label: "Jam Kerja", icon: Clock, roles: [] },
     ],
   },
 ];
