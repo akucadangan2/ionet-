@@ -22,6 +22,7 @@ const ROLE_RESTRICTED_ROUTES: Record<string, string[]> = {
   "/jaringan/genieacs": ["admin"],
   "/jaringan/genieacs-coverage": ["admin"],
   "/jaringan/lokasi": [],
+  "/jaringan/rekap-kuota": [],
 
   "/pelanggan": ["admin"],
   "/tiket": ["admin", "teknisi"],
