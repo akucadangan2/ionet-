@@ -1,6 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase/admin";
 
+// Cari aturan jam absen yang berlaku buat karyawan ini hari ini.
+// Prioritas: aturan khusus shift-nya (pagi/siang) > aturan "umum".
+// Kalau nggak ketemu sama sekali, return null - artinya bebas, nggak dibatasi.
+async function resolveJamAbsen(karyawanId: string) {
+  const { data: karyawan } = await supabase
+    .from("karyawan")
+    .select("shift")
+    .eq("id", karyawanId)
+    .single();
+
+  const shift = karyawan?.shift || null;
+  const today = new Date().toISOString().slice(0, 10);
+  const scopes = shift ? [shift, "umum"] : ["umum"];
+
+  const { data: rules } = await supabase
+    .from("pengaturan_jam_absen")
+    .select("*")
+    .in("scope", scopes)
+    .lte("berlaku_mulai", today)
+    .or(`berlaku_sampai.is.null,berlaku_sampai.gte.${today}`)
+    .order("dibuat_at", { ascending: false });
+
+  if (!rules || rules.length === 0) return null;
+
+  const spesifik = rules.find((r) => r.scope === shift);
+  return spesifik || rules[0];
+}
+
 export async function GET(req: NextRequest) {
   const tanggal = req.nextUrl.searchParams.get("tanggal") || new Date().toISOString().slice(0, 10);
 
@@ -19,6 +47,24 @@ export async function POST(req: NextRequest) {
   const { karyawanId, tipe, latitude, longitude, fotoBase64 } = body;
 
   const today = new Date().toISOString().slice(0, 10);
+
+  // Cek batas jam SEBELUM upload foto, biar gagal cepat kalau memang di luar jam yang diizinkan
+  const rule = await resolveJamAbsen(karyawanId);
+  if (rule) {
+    const jamSekarang = new Date().toTimeString().slice(0, 5); // "HH:MM"
+
+    if (tipe === "masuk") {
+      const batasMulai = String(rule.jam_mulai_masuk).slice(0, 5);
+      if (jamSekarang < batasMulai) {
+        return NextResponse.json({ message: `Absen masuk baru bisa mulai jam ${batasMulai}` }, { status: 400 });
+      }
+    } else {
+      const batasPulang = String(rule.jam_batas_pulang).slice(0, 5);
+      if (jamSekarang > batasPulang) {
+        return NextResponse.json({ message: `Batas absen pulang sudah lewat (jam ${batasPulang})` }, { status: 400 });
+      }
+    }
+  }
 
   let fotoUrl = null;
   if (fotoBase64) {
