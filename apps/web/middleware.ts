@@ -28,7 +28,7 @@ const ROLE_RESTRICTED_ROUTES: Record<string, string[]> = {
   "/tiket": ["admin", "teknisi"],
   "/operasional/karyawan": [],
   "/pengguna": [],
-  "/operasional/absensi": ["admin", "teknisi"],
+  "/operasional/absensi": ["admin", "teknisi", "staff_biasa"],
   "/operasional/kasbon": [],
   "/operasional/payroll": [],
   "/operasional/komisi": ["admin"],

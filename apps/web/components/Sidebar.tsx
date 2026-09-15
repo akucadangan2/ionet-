@@ -68,7 +68,7 @@ const menuGroups = [
       { href: "/tiket", label: "Tiket Gangguan", icon: AlertTriangle, roles: ["admin", "teknisi"] },
       { href: "/operasional/karyawan", label: "Data Karyawan", icon: Users, roles: [] },
       { href: "/pengguna", label: "Pengguna", icon: UserCog, roles: [] },
-      { href: "/operasional/absensi", label: "Rekap Absensi", icon: AlertTriangle, roles: ["admin", "teknisi"] },
+      { href: "/operasional/absensi", label: "Rekap Absensi", icon: AlertTriangle, roles: ["admin", "teknisi", "staff_biasa"] },
       { href: "/operasional/kasbon", label: "Kasbon", icon: Wallet, roles: [] },
       { href: "/operasional/payroll", label: "Payroll", icon: Wallet, roles: [] },
       { href: "/operasional/komisi", label: "Komisi", icon: Wallet, roles: ["admin"] },

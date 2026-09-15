@@ -82,7 +82,7 @@ const menuGroups = [
       { href: "/tiket", label: "Tiket Gangguan", icon: AlertTriangle, roles: ["admin", "teknisi"] },
       { href: "/operasional/karyawan", label: "Data Karyawan", icon: Users, roles: [] },
       { href: "/pengguna", label: "Pengguna", icon: UserCog, roles: [] },
-      { href: "/operasional/absensi", label: "Rekap Absensi", icon: AlertTriangle, roles: ["admin", "teknisi"] },
+      { href: "/operasional/absensi", label: "Rekap Absensi", icon: AlertTriangle, roles: ["admin", "teknisi", "staff_biasa"] },
       { href: "/operasional/kasbon", label: "Kasbon", icon: Wallet, roles: [] },
       { href: "/operasional/payroll", label: "Payroll", icon: Wallet, roles: [] },
       { href: "/operasional/komisi", label: "Komisi", icon: Wallet, roles: ["admin"] },
@@ -240,6 +240,8 @@ export default function DashboardHome() {
     },
   ];
 
+  const sembunyikanStatCards = role === "teknisi" || role === "staff_biasa";
+
   const visibleMenuGroups = menuGroups
     .map((group) => ({ ...group, items: group.items.filter((item) => canAccess(role, item.roles)) }))
     .filter((group) => group.items.length > 0);
@@ -266,34 +268,36 @@ export default function DashboardHome() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {statCards.map((card, i) => {
-          const Icon = card.icon;
-          return (
-            <div
-              key={card.label}
-              className={"stagger-" + Math.min(i + 2, 5) + " p-5 rounded-xl transition-transform hover:-translate-y-0.5"}
-              style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}
-            >
+      {!sembunyikanStatCards && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {statCards.map((card, i) => {
+            const Icon = card.icon;
+            return (
               <div
-                className="w-10 h-10 rounded-lg flex items-center justify-center mb-3"
-                style={{ background: card.bg }}
+                key={card.label}
+                className={"stagger-" + Math.min(i + 2, 5) + " p-5 rounded-xl transition-transform hover:-translate-y-0.5"}
+                style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}
               >
-                <Icon size={20} color={card.color} strokeWidth={2} />
+                <div
+                  className="w-10 h-10 rounded-lg flex items-center justify-center mb-3"
+                  style={{ background: card.bg }}
+                >
+                  <Icon size={20} color={card.color} strokeWidth={2} />
+                </div>
+                <p className="text-xs uppercase tracking-wide mb-1" style={{ color: "var(--color-ink-muted)" }}>
+                  {card.label}
+                </p>
+                <p
+                  className={card.small ? "text-xl font-semibold" : "text-3xl font-semibold"}
+                  style={{ fontFamily: "var(--font-display)" }}
+                >
+                  {loading ? "..." : card.value}
+                </p>
               </div>
-              <p className="text-xs uppercase tracking-wide mb-1" style={{ color: "var(--color-ink-muted)" }}>
-                {card.label}
-              </p>
-              <p
-                className={card.small ? "text-xl font-semibold" : "text-3xl font-semibold"}
-                style={{ fontFamily: "var(--font-display)" }}
-              >
-                {loading ? "..." : card.value}
-              </p>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-6">
         <div
