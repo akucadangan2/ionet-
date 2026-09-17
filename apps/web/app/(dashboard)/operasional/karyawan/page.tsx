@@ -32,6 +32,7 @@ export default function KaryawanPage() {
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [tab, setTab] = useState<"aktif" | "arsip">("aktif");
 
   async function loadData() {
     setLoading(true);
@@ -124,6 +125,20 @@ export default function KaryawanPage() {
 
   const inputStyle = { border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px" };
 
+  const listAktif = list.filter(function (k) { return k.status === "aktif"; });
+  const listArsip = list.filter(function (k) { return k.status !== "aktif"; });
+  const listTampil = tab === "aktif" ? listAktif : listArsip;
+
+  const tabStyle = (active: boolean) => ({
+    padding: "8px 16px",
+    borderRadius: 8,
+    fontSize: 14,
+    fontWeight: 500,
+    border: active ? "none" : "1px solid var(--color-border)",
+    background: active ? "var(--color-accent)" : "var(--color-surface)",
+    color: active ? "white" : "var(--color-ink)",
+  });
+
   if (loading) return <p style={{ color: "var(--color-ink-muted)" }}>Memuat...</p>;
 
   return (
@@ -160,6 +175,15 @@ export default function KaryawanPage() {
       <p className="text-sm mb-6" style={{ color: "var(--color-ink-muted)" }}>
         Bagikan link "Salin Link Absen" ke karyawan lewat WhatsApp/grup, mereka bisa absen langsung tanpa login
       </p>
+
+      <div className="flex gap-2 mb-4">
+        <button onClick={function () { setTab("aktif"); }} style={tabStyle(tab === "aktif")}>
+          Aktif ({listAktif.length})
+        </button>
+        <button onClick={function () { setTab("arsip"); }} style={tabStyle(tab === "arsip")}>
+          Arsip ({listArsip.length})
+        </button>
+      </div>
 
       {showForm && (
         <div className="p-5 rounded-lg mb-6" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", maxWidth: 500 }}>
@@ -260,7 +284,7 @@ export default function KaryawanPage() {
             </tr>
           </thead>
           <tbody>
-            {list.map(function (k) {
+            {listTampil.map(function (k) {
               return (
                 <tr key={k.id} style={{ borderTop: "1px solid var(--color-border)" }}>
                   <td className="p-3 text-sm">{k.nama}</td>
@@ -314,10 +338,10 @@ export default function KaryawanPage() {
                 </tr>
               );
             })}
-            {list.length === 0 && (
+            {listTampil.length === 0 && (
               <tr>
                 <td colSpan={9} className="text-center py-8 text-sm" style={{ color: "var(--color-ink-muted)" }}>
-                  Belum ada data karyawan
+                  {tab === "aktif" ? "Belum ada karyawan aktif" : "Belum ada karyawan di arsip"}
                 </td>
               </tr>
             )}
