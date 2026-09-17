@@ -5,7 +5,6 @@ export async function GET() {
   const { data: karyawanList, error } = await supabase.from("karyawan").select("*").order("nama");
   if (error) return NextResponse.json({ message: error.message }, { status: 500 });
 
-  // Cari semua karyawan yang udah di-link ke akun staff, biar bisa ditandain di UI
   const { data: staffList } = await supabase
     .from("staff")
     .select("nama, karyawan_id")
@@ -48,7 +47,6 @@ export async function DELETE(req: NextRequest) {
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ message: "id diperlukan" }, { status: 400 });
 
-  // Cek dulu apa karyawan ini udah di-link ke akun staff - kalau iya, tolak
   const { data: staffTerkait } = await supabase
     .from("staff")
     .select("id, nama")
@@ -59,6 +57,29 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json(
       {
         message: `Tidak bisa dihapus - karyawan ini sudah terhubung ke akun staff "${staffTerkait.nama}". Putuskan link-nya dulu di halaman Pengguna sebelum menghapus.`,
+      },
+      { status: 400 }
+    );
+  }
+
+  // Cek juga riwayat data di tabel lain - hapus paksa bisa merusak riwayat itu
+  const [absensiCount, kasbonCount, payrollCount, komisiCount] = await Promise.all([
+    supabase.from("absensi").select("id", { count: "exact", head: true }).eq("karyawan_id", id),
+    supabase.from("kasbon").select("id", { count: "exact", head: true }).eq("karyawan_id", id),
+    supabase.from("payroll").select("id", { count: "exact", head: true }).eq("karyawan_id", id),
+    supabase.from("komisi").select("id", { count: "exact", head: true }).eq("karyawan_id", id),
+  ]);
+
+  const riwayat: string[] = [];
+  if ((absensiCount.count || 0) > 0) riwayat.push(`${absensiCount.count} data absensi`);
+  if ((kasbonCount.count || 0) > 0) riwayat.push(`${kasbonCount.count} data kasbon`);
+  if ((payrollCount.count || 0) > 0) riwayat.push(`${payrollCount.count} data payroll`);
+  if ((komisiCount.count || 0) > 0) riwayat.push(`${komisiCount.count} data komisi`);
+
+  if (riwayat.length > 0) {
+    return NextResponse.json(
+      {
+        message: `Tidak bisa dihapus - karyawan ini masih punya riwayat: ${riwayat.join(", ")}. Kalau karyawan sudah tidak aktif, ubah statusnya jadi "Nonaktif" saja lewat tombol Edit, jangan dihapus - biar riwayatnya tetap aman buat laporan.`,
       },
       { status: 400 }
     );
