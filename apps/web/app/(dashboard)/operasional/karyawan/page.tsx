@@ -12,6 +12,7 @@ interface Karyawan {
   status: string;
   shift: string | null;
   potongan_alpa: number | null;
+  staffTerhubung: string | null;
 }
 
 const emptyForm = { nama: "", jabatan: "teknisi", no_hp: "", gaji_pokok: "", status: "aktif", shift: "", potongan_alpa: "" };
@@ -92,13 +93,22 @@ export default function KaryawanPage() {
     }
   }
 
-  async function handleHapus(id: string) {
+  async function handleHapus(k: Karyawan) {
+    if (k.staffTerhubung) {
+      alert(`Tidak bisa dihapus - karyawan ini sudah terhubung ke akun staff "${k.staffTerhubung}". Putuskan link-nya dulu di halaman Pengguna.`);
+      return;
+    }
     if (!confirm("Yakin ingin menghapus data karyawan ini?")) return;
-    setDeletingId(id);
+    setDeletingId(k.id);
     try {
-      await fetch("/api/karyawan?id=" + id, {
+      const res = await fetch("/api/karyawan?id=" + k.id, {
         method: "DELETE",
       });
+      const json = await res.json();
+      if (!res.ok) {
+        alert(json.message);
+        return;
+      }
       loadData();
     } finally {
       setDeletingId(null);
@@ -130,6 +140,7 @@ export default function KaryawanPage() {
             {copied ? "Link Tersalin" : "Salin Link Absen"}
           </button>
 
+          {/* BAGIAN YANG DIPERBAIKI: Menambahkan tag pembuka <a */}
           <a
             href="/absensi"
             target="_blank"
@@ -140,7 +151,6 @@ export default function KaryawanPage() {
             <ExternalLink size={15} />
             Buka
           </a>
-          
           <button onClick={openTambah} className="px-4 py-2 rounded-lg text-sm font-medium text-white" style={{ background: "var(--color-accent)" }}>
             + Tambah Karyawan
           </button>
@@ -245,6 +255,7 @@ export default function KaryawanPage() {
               <th className="text-left p-3 text-sm">Gaji Pokok</th>
               <th className="text-left p-3 text-sm">Potongan Alpa/Izin</th>
               <th className="text-left p-3 text-sm">Status</th>
+              <th className="text-left p-3 text-sm">Link Akun</th>
               <th className="text-left p-3 text-sm">Aksi</th>
             </tr>
           </thead>
@@ -276,13 +287,26 @@ export default function KaryawanPage() {
                       {k.status}
                     </span>
                   </td>
+                  <td className="p-3 text-sm">
+                    {k.staffTerhubung ? (
+                      <span style={{ color: "var(--color-signal-good)" }}>{k.staffTerhubung}</span>
+                    ) : (
+                      <span style={{ color: "var(--color-ink-muted)" }}>Belum di-link</span>
+                    )}
+                  </td>
                   <td className="p-3">
                     <button onClick={function () { openEdit(k); }} className="px-2 py-1 rounded text-sm mr-1" style={{ border: "1px solid var(--color-border)" }}>Edit</button>
                     <button
-                      onClick={function () { handleHapus(k.id); }}
-                      disabled={deletingId === k.id}
+                      onClick={function () { handleHapus(k); }}
+                      disabled={deletingId === k.id || !!k.staffTerhubung}
+                      title={k.staffTerhubung ? `Tidak bisa dihapus - sudah terhubung ke akun "${k.staffTerhubung}"` : "Hapus karyawan ini"}
                       className="px-2 py-1 rounded text-sm"
-                      style={{ border: "1px solid var(--color-signal-bad)", color: "var(--color-signal-bad)", opacity: deletingId === k.id ? 0.6 : 1 }}
+                      style={{
+                        border: "1px solid var(--color-signal-bad)",
+                        color: k.staffTerhubung ? "var(--color-ink-muted)" : "var(--color-signal-bad)",
+                        opacity: deletingId === k.id || k.staffTerhubung ? 0.5 : 1,
+                        cursor: k.staffTerhubung ? "not-allowed" : "pointer",
+                      }}
                     >
                       {deletingId === k.id ? "..." : "Hapus"}
                     </button>
@@ -292,7 +316,7 @@ export default function KaryawanPage() {
             })}
             {list.length === 0 && (
               <tr>
-                <td colSpan={8} className="text-center py-8 text-sm" style={{ color: "var(--color-ink-muted)" }}>
+                <td colSpan={9} className="text-center py-8 text-sm" style={{ color: "var(--color-ink-muted)" }}>
                   Belum ada data karyawan
                 </td>
               </tr>
