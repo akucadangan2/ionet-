@@ -1,6 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase/admin";
 
+// PENTING: server (Vercel) jalan pakai waktu UTC, BUKAN waktu lokal client.
+// Client di Sulawesi = WITA (UTC+8), BUKAN WIB (UTC+7).
+// Semua perhitungan tanggal/jam "sekarang" di file ini WAJIB pakai
+// helper ini, jangan pakai new Date().toISOString() atau
+// new Date().toTimeString() langsung - itu bakal salah jam.
+
+function tanggalWita(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Makassar",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+function jamWita(): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Makassar",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date());
+}
+
 // Cari aturan jam absen yang berlaku buat karyawan ini hari ini.
 // Prioritas: aturan khusus shift-nya (pagi/siang) > aturan "umum".
 // Kalau nggak ketemu sama sekali, return null - artinya bebas, nggak dibatasi.
@@ -12,7 +36,7 @@ async function resolveJamAbsen(karyawanId: string) {
     .single();
 
   const shift = karyawan?.shift || null;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = tanggalWita();
   const scopes = shift ? [shift, "umum"] : ["umum"];
 
   const { data: rules } = await supabase
@@ -30,7 +54,7 @@ async function resolveJamAbsen(karyawanId: string) {
 }
 
 export async function GET(req: NextRequest) {
-  const tanggal = req.nextUrl.searchParams.get("tanggal") || new Date().toISOString().slice(0, 10);
+  const tanggal = req.nextUrl.searchParams.get("tanggal") || tanggalWita();
 
   const { data, error } = await supabase
     .from("absensi")
@@ -46,12 +70,12 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { karyawanId, tipe, latitude, longitude, fotoBase64 } = body;
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = tanggalWita();
 
   // Cek batas jam SEBELUM upload foto, biar gagal cepat kalau memang di luar jam yang diizinkan
   const rule = await resolveJamAbsen(karyawanId);
   if (rule) {
-    const jamSekarang = new Date().toTimeString().slice(0, 5); // "HH:MM"
+    const jamSekarang = jamWita(); // "HH:MM" dalam WITA, bukan UTC
 
     if (tipe === "masuk") {
       const batasMulai = String(rule.jam_mulai_masuk).slice(0, 5);
