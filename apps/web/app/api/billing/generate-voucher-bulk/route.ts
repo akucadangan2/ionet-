@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase/admin";
-import { addHotspotUser } from "@/lib/mikrotik/client";
+import { addHotspotUsersBulk } from "@/lib/mikrotik/client";
 
 function generateShortCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -47,15 +47,27 @@ export async function POST(req: NextRequest) {
     }
     const routerLokasiId = routerResult.data.lokasi_id;
 
+    const limitBytesTotal = paket.limit_data_mb ? paket.limit_data_mb * 1024 * 1024 : undefined;
+
+    // Generate semua kode dulu, baru kirim SEKALIGUS ke MikroTik pakai 1 koneksi
+    // (dulu 1 koneksi baru per voucher - bikin lambat + gampang timeout kalau
+    // router lagi sibuk, karena tiap koneksi baru butuh login dari nol)
+    const kodeList = Array.from({ length: jumlah }, () => generateShortCode());
+
+    const usersUntukMikrotik = kodeList.map((kode) => ({
+      username: kode,
+      password: kode,
+      profile: paket.profile_mikrotik,
+      limitBytesTotal,
+    }));
+
+    const hasilMikrotik = await addHotspotUsersBulk(routerId, usersUntukMikrotik);
+
     const generated = [];
     const errors = [];
 
-    for (let i = 0; i < jumlah; i++) {
-      const kode = generateShortCode();
-      try {
-        const limitBytesTotal = paket.limit_data_mb ? paket.limit_data_mb * 1024 * 1024 : undefined;
-        await addHotspotUser(routerId, kode, kode, paket.profile_mikrotik, undefined, limitBytesTotal);
-
+    for (const hasil of hasilMikrotik) {
+      if (hasil.success) {
         const insertResult = await supabase
           .from("transaksi_voucher")
           .insert({
@@ -64,19 +76,19 @@ export async function POST(req: NextRequest) {
             nominal_dibayar: paket.harga,
             metode: "tunai",
             status: "lunas",
-            kode_voucher: kode + "/" + kode,
+            kode_voucher: hasil.username + "/" + hasil.username,
             dibayar_at: new Date().toISOString(),
           })
           .select("id")
           .single();
 
         if (insertResult.error) {
-          errors.push({ kode: kode, error: insertResult.error.message });
+          errors.push({ kode: hasil.username, error: insertResult.error.message });
         } else {
-          generated.push({ kode: kode, paketNama: paket.nama, harga: paket.harga });
+          generated.push({ kode: hasil.username, paketNama: paket.nama, harga: paket.harga });
         }
-      } catch (err) {
-        errors.push({ kode: kode, error: (err as Error).message });
+      } else {
+        errors.push({ kode: hasil.username, error: hasil.error || "gagal dibuat di MikroTik" });
       }
     }
 

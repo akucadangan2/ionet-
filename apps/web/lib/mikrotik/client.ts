@@ -30,6 +30,25 @@ export async function addHotspotUser(
   await relayCall("/mikrotik/generate-voucher", "POST", { routerId, username, password, profile, limitUptime, limitBytesTotal });
 }
 
+export interface HotspotUserBulkItem {
+  username: string;
+  password: string;
+  profile: string;
+  limitUptime?: string;
+  limitBytesTotal?: number;
+}
+
+export interface HotspotUserBulkResult {
+  username: string;
+  success: boolean;
+  error?: string;
+}
+
+export async function addHotspotUsersBulk(routerId: string, users: HotspotUserBulkItem[]): Promise<HotspotUserBulkResult[]> {
+  const result = await relayCall("/mikrotik/generate-voucher-bulk", "POST", { routerId, users });
+  return result.hasil;
+}
+
 export async function setPPPoEStatus(routerId: string, pppoeUser: string, enabled: boolean) {
   await relayCall("/mikrotik/ppoe-status", "POST", { routerId, pppoeUser, enabled });
 }

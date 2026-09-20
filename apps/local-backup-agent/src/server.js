@@ -90,13 +90,14 @@ app.post("/transaksi-voucher", (req, res) => {
 
 // ===== Relay ke Mikrotik (dipanggil dari Vercel lewat Cloudflare Tunnel) =====
 
-app.post("/mikrotik/generate-voucher", checkAuth, async (req, res) => {
+app.post("/mikrotik/generate-voucher-bulk", checkAuth, async (req, res) => {
   try {
-    const { routerId, username, password, profile, limitUptime, limitBytesTotal } = req.body;
+    const { routerId, users } = req.body;
     if (!routerId) throw new Error("routerId diperlukan");
+    if (!Array.isArray(users) || users.length === 0) throw new Error("users diperlukan (array)");
     const config = await getRouterConfig(routerId);
-    await mikrotik.addHotspotUser(config, username, password, profile, limitUptime, limitBytesTotal);
-    res.json({ message: "voucher berhasil dibuat" });
+    const hasil = await mikrotik.addHotspotUsersBulk(config, users);
+    res.json({ hasil });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

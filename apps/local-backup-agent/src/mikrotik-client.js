@@ -9,6 +9,7 @@ async function getConnection(config) {
     user: config.user,
     password: config.password,
     port: config.port || 8728,
+    timeout: 30, // detik - dinaikin dari default (kemungkinan 10 detik), biar ga gampang timeout kalau router lagi sibuk
   });
   await conn.connect();
   return conn;
@@ -24,6 +25,31 @@ async function addHotspotUser(config, username, password, profile, limitUptime, 
   } finally {
     conn.close();
   }
+}
+
+// Versi BULK - buka 1 koneksi doang, dipakai bareng buat semua voucher dalam
+// 1 batch. Ini jauh lebih ringan buat router dibanding buka-tutup koneksi
+// per voucher (yang bikin timeout kalau router lagi sibuk, karena tiap
+// koneksi baru butuh proses login dari nol).
+async function addHotspotUsersBulk(config, users) {
+  const conn = await getConnection(config);
+  const hasil = [];
+  try {
+    for (const u of users) {
+      try {
+        const params = [`=name=${u.username}`, `=password=${u.password}`, `=profile=${u.profile}`];
+        if (u.limitUptime) params.push(`=limit-uptime=${u.limitUptime}`);
+        if (u.limitBytesTotal) params.push(`=limit-bytes-total=${u.limitBytesTotal}`);
+        await conn.write("/ip/hotspot/user/add", params);
+        hasil.push({ username: u.username, success: true });
+      } catch (err) {
+        hasil.push({ username: u.username, success: false, error: err.message });
+      }
+    }
+  } finally {
+    conn.close();
+  }
+  return hasil;
 }
 
 async function setPPPoEStatus(config, pppoeUser, enabled) {
@@ -186,6 +212,7 @@ async function monitorInterfaceTraffic(config, interfaceName) {
 
 module.exports = {
   addHotspotUser,
+  addHotspotUsersBulk,
   setPPPoEStatus,
   setBandwidthQueue,
   getWirelessRegistrationTable,
