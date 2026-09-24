@@ -138,7 +138,17 @@ export async function checkStatus(orderId: string) {
     signal: AbortSignal.timeout(8000),
   });
 
-  return res.json();
+  const responseText = await res.text();
+
+  if (!res.ok) {
+    throw new Error(`DOKU checkStatus gagal (status ${res.status}): ${responseText.slice(0, 300)}`);
+  }
+
+  try {
+    return JSON.parse(responseText);
+  } catch {
+    throw new Error(`DOKU checkStatus balikin respons bukan JSON (status ${res.status}): ${responseText.slice(0, 300)}`);
+  }
 }
 
 // ===== DOKU Direct API (SNAP) - QRIS Dinamis, kita bangun sendiri tampilannya =====
