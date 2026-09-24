@@ -10,13 +10,20 @@ async function relayCall(path: string, method: "GET" | "POST", body?: object) {
       Authorization: `Bearer ${RELAY_TOKEN}`,
     },
     body: body ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(35000),
   });
 
-  const json = await res.json();
+  const responseText = await res.text();
+
   if (!res.ok) {
-    throw new Error(json.message || `Relay error: ${res.status}`);
+    throw new Error(`Relay error (status ${res.status}): ${responseText.slice(0, 300)}`);
   }
-  return json;
+
+  try {
+    return JSON.parse(responseText);
+  } catch {
+    throw new Error(`Relay balikin respons bukan JSON (status ${res.status}): ${responseText.slice(0, 300)}`);
+  }
 }
 
 export async function addHotspotUser(
