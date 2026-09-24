@@ -8,6 +8,7 @@ import { processPaymentSuccess } from "@/lib/payment/process-payment";
 
 export const maxDuration = 30;
 export const dynamic = "force-dynamic";
+
 export async function GET() {
   // Cuma cek transaksi pending yang dibuat dalam 2 jam terakhir - transaksi
   // pending yang lebih lama dari itu praktis udah expired di sisi DOKU
@@ -49,5 +50,8 @@ export async function GET() {
     s.status === "fulfilled" ? s.value : { orderId: allPending[i].id, message: `error: ${s.reason?.message || s.reason}` }
   );
 
-  return NextResponse.json({ checked: allPending.length, results });
+  return NextResponse.json(
+    { checked: allPending.length, results },
+    { headers: { "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0" } }
+  );
 }
