@@ -7,7 +7,7 @@ import { checkStatus } from "@/lib/doku/client";
 import { processPaymentSuccess } from "@/lib/payment/process-payment";
 
 export const maxDuration = 30;
-
+export const dynamic = "force-dynamic";
 export async function GET() {
   // Cuma cek transaksi pending yang dibuat dalam 2 jam terakhir - transaksi
   // pending yang lebih lama dari itu praktis udah expired di sisi DOKU
