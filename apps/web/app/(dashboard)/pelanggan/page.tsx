@@ -49,6 +49,21 @@ const emptyForm = {
   tanggal_jatuh_tempo: "",
 };
 
+function actionBtnStyle(color: string, disabled?: boolean) {
+  return {
+    padding: "4px 10px",
+    borderRadius: 6,
+    border: `1px solid ${color}`,
+    background: "#fff",
+    color: color,
+    fontSize: 12,
+    fontWeight: 500,
+    cursor: disabled ? "default" : "pointer",
+    opacity: disabled ? 0.6 : 1,
+    whiteSpace: "nowrap" as const,
+  };
+}
+
 export default function PelangganPage() {
   const [pelangganList, setPelangganList] = useState<Pelanggan[]>([]);
   const [lokasiList, setLokasiList] = useState<Lokasi[]>([]);
@@ -582,38 +597,42 @@ export default function PelangganPage() {
                 )}
               </td>
               <td style={{ padding: 8 }}>
-                <button onClick={() => openEditForm(p)}>Edit</button>
-                <button onClick={() => handleHapus(p.id)} style={{ marginLeft: 5 }}>
-                  Hapus
-                </button>
-                {p.tipe_langganan === "pppoe_bulanan" && p.status === "aktif" && (
-                  <>
-                    <button
-                      onClick={() => handleMatikanModem(p.id, p.nama)}
-                      disabled={modemProcessingId === p.id}
-                      style={{ marginLeft: 5, color: "var(--color-signal-bad)", opacity: modemProcessingId === p.id ? 0.6 : 1 }}
-                    >
-                      {modemProcessingId === p.id ? "..." : "Matikan"}
-                    </button>
-                    <button
-                      onClick={() => handleIsolirModem(p.id, p.nama)}
-                      disabled={modemProcessingId === p.id}
-                      style={{ marginLeft: 5, color: "#B8860B", opacity: modemProcessingId === p.id ? 0.6 : 1 }}
-                      title="Nama tetap keliatan aktif di Mikrotik, internet dibikin nggak bisa dipakai"
-                    >
-                      {modemProcessingId === p.id ? "..." : "Isolir"}
-                    </button>
-                  </>
-                )}
-                {p.tipe_langganan === "pppoe_bulanan" && p.status !== "aktif" && (
-                  <button
-                    onClick={() => handleAktifkanModem(p.id, p.nama, p.status)}
-                    disabled={modemProcessingId === p.id}
-                    style={{ marginLeft: 5, color: "var(--color-signal-good)", opacity: modemProcessingId === p.id ? 0.6 : 1 }}
-                  >
-                    {modemProcessingId === p.id ? "..." : "Aktifkan"}
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <button onClick={() => openEditForm(p)} style={actionBtnStyle("#555")}>
+                    Edit
                   </button>
-                )}
+                  <button onClick={() => handleHapus(p.id)} style={actionBtnStyle("#999")}>
+                    Hapus
+                  </button>
+                  {p.tipe_langganan === "pppoe_bulanan" && p.status === "aktif" && (
+                    <>
+                      <button
+                        onClick={() => handleMatikanModem(p.id, p.nama)}
+                        disabled={modemProcessingId === p.id}
+                        style={actionBtnStyle("#C0392B", modemProcessingId === p.id)}
+                      >
+                        {modemProcessingId === p.id ? "..." : "Matikan"}
+                      </button>
+                      <button
+                        onClick={() => handleIsolirModem(p.id, p.nama)}
+                        disabled={modemProcessingId === p.id}
+                        style={actionBtnStyle("#B8860B", modemProcessingId === p.id)}
+                        title="Nama tetap keliatan aktif di Mikrotik, internet dibikin nggak bisa dipakai"
+                      >
+                        {modemProcessingId === p.id ? "..." : "Isolir"}
+                      </button>
+                    </>
+                  )}
+                  {p.tipe_langganan === "pppoe_bulanan" && p.status !== "aktif" && (
+                    <button
+                      onClick={() => handleAktifkanModem(p.id, p.nama, p.status)}
+                      disabled={modemProcessingId === p.id}
+                      style={actionBtnStyle("#1D8348", modemProcessingId === p.id)}
+                    >
+                      {modemProcessingId === p.id ? "..." : "Aktifkan"}
+                    </button>
+                  )}
+                </div>
               </td>
             </tr>
           ))}
