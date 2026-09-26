@@ -60,6 +60,18 @@ export async function setPPPoEStatus(routerId: string, pppoeUser: string, enable
   await relayCall("/mikrotik/ppoe-status", "POST", { routerId, pppoeUser, enabled });
 }
 
+export async function getPppoeProfile(routerId: string, pppoeUser: string): Promise<string> {
+  const result = await relayCall(
+    `/mikrotik/pppoe-profile?routerId=${routerId}&pppoeUser=${encodeURIComponent(pppoeUser)}`,
+    "GET"
+  );
+  return result.profile;
+}
+
+export async function setPppoeProfile(routerId: string, pppoeUser: string, profileName: string) {
+  await relayCall("/mikrotik/set-pppoe-profile", "POST", { routerId, pppoeUser, profileName });
+}
+
 export async function setBandwidthQueue(
   routerId: string,
   target: string,

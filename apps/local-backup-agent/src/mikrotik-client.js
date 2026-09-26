@@ -70,6 +70,35 @@ async function setPPPoEStatus(config, pppoeUser, enabled) {
   }
 }
 
+async function getPppoeProfile(config, pppoeUser) {
+  const conn = await getConnection(config);
+  try {
+    const secrets = await conn.write("/ppp/secret/print", [`?name=${pppoeUser}`]);
+    if (!secrets.length) throw new Error(`PPPoE user ${pppoeUser} tidak ditemukan`);
+    return secrets[0].profile;
+  } finally {
+    conn.close();
+  }
+}
+
+async function setPppoeProfile(config, pppoeUser, profileName) {
+  const conn = await getConnection(config);
+  try {
+    const secrets = await conn.write("/ppp/secret/print", [`?name=${pppoeUser}`]);
+    if (!secrets.length) throw new Error(`PPPoE user ${pppoeUser} tidak ditemukan`);
+    const id = secrets[0][".id"];
+    await conn.write("/ppp/secret/set", [`=.id=${id}`, `=profile=${profileName}`]);
+
+    // paksa reconnect biar profile baru langsung kepake, nggak nunggu renegosiasi
+    const active = await conn.write("/ppp/active/print", [`?name=${pppoeUser}`]);
+    if (active.length) {
+      await conn.write("/ppp/active/remove", [`=.id=${active[0][".id"]}`]);
+    }
+  } finally {
+    conn.close();
+  }
+}
+
 async function setBandwidthQueue(config, target, uploadLimit, downloadLimit) {
   const conn = await getConnection(config);
   try {
@@ -214,6 +243,8 @@ module.exports = {
   addHotspotUser,
   addHotspotUsersBulk,
   setPPPoEStatus,
+  getPppoeProfile,
+  setPppoeProfile,
   setBandwidthQueue,
   getWirelessRegistrationTable,
   getActivePPPoEConnections,

@@ -127,6 +127,30 @@ app.post("/mikrotik/ppoe-status", checkAuth, async (req, res) => {
   }
 });
 
+app.get("/mikrotik/pppoe-profile", checkAuth, async (req, res) => {
+  try {
+    const { routerId, pppoeUser } = req.query;
+    if (!routerId || !pppoeUser) throw new Error("routerId dan pppoeUser diperlukan");
+    const config = await getRouterConfig(routerId);
+    const profile = await mikrotik.getPppoeProfile(config, pppoeUser);
+    res.json({ profile });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.post("/mikrotik/set-pppoe-profile", checkAuth, async (req, res) => {
+  try {
+    const { routerId, pppoeUser, profileName } = req.body;
+    if (!routerId || !pppoeUser || !profileName) throw new Error("routerId, pppoeUser, dan profileName diperlukan");
+    const config = await getRouterConfig(routerId);
+    await mikrotik.setPppoeProfile(config, pppoeUser, profileName);
+    res.json({ message: "profile PPPoE berhasil diubah" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 app.post("/mikrotik/set-bandwidth", checkAuth, async (req, res) => {
   try {
     const { routerId, target, uploadLimit, downloadLimit } = req.body;
