@@ -259,14 +259,14 @@ export default function PelangganPage() {
     }
   }
 
-  async function handleAktifkanModem(pelangganId: string, nama: string) {
-    if (!window.confirm(`Aktifkan kembali modem ${nama}?`)) return;
+  async function handleIsolirModem(pelangganId: string, nama: string) {
+    if (!window.confirm(`Isolir ${nama}? Namanya tetap keliatan aktif di Mikrotik, tapi internetnya dibikin nggak bisa dipakai (rate-limit 1kbps).`)) return;
     setModemProcessingId(pelangganId);
     try {
-      const res = await fetch("/api/billing/activate-modem", {
+      const res = await fetch("/api/billing/isolir-modem", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pelangganId }),
+        body: JSON.stringify({ pelangganId, aksi: "isolir" }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -277,6 +277,36 @@ export default function PelangganPage() {
     } finally {
       setModemProcessingId(null);
     }
+  }
+
+  async function handleAktifkanModem(pelangganId: string, nama: string, currentStatus: string) {
+    if (!window.confirm(`Aktifkan kembali modem ${nama}?`)) return;
+    setModemProcessingId(pelangganId);
+    try {
+      const isIsolir = currentStatus === "isolir";
+      const res = await fetch(
+        isIsolir ? "/api/billing/isolir-modem" : "/api/billing/activate-modem",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            isIsolir ? { pelangganId, aksi: "aktifkan" } : { pelangganId }
+          ),
+        }
+      );
+      const json = await res.json();
+      if (!res.ok) {
+        alert(`Gagal: ${json.message}`);
+      } else {
+        loadData();
+      }
+    } finally {
+      setModemProcessingId(null);
+    }
+  }
+
+  function bukaMaps(lat: number, lng: number) {
+    window.open("https://www.google.com/maps?q=" + lat + "," + lng, "_blank", "noopener,noreferrer");
   }
 
   const filteredList = pelangganList.filter(
@@ -541,15 +571,12 @@ export default function PelangganPage() {
               </td>
               <td style={{ padding: 8 }}>
                 {p.latitude && p.longitude ? (
-                  <a
-                    href={`https://www.google.com/maps?q=${p.latitude},${p.longitude}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ color: "var(--color-accent)", textDecoration: "none" }}
-                    title="Buka di Google Maps"
+                  <button
+                    onClick={() => bukaMaps(p.latitude as number, p.longitude as number)}
+                    style={{ color: "var(--color-accent)", background: "none", border: "none", textDecoration: "underline", cursor: "pointer", padding: 0, font: "inherit" }}
                   >
-                    📍 Lihat
-                  </a>
+                    Lihat
+                  </button>
                 ) : (
                   <span style={{ color: "#999" }}>-</span>
                 )}
@@ -560,17 +587,27 @@ export default function PelangganPage() {
                   Hapus
                 </button>
                 {p.tipe_langganan === "pppoe_bulanan" && p.status === "aktif" && (
-                  <button
-                    onClick={() => handleMatikanModem(p.id, p.nama)}
-                    disabled={modemProcessingId === p.id}
-                    style={{ marginLeft: 5, color: "var(--color-signal-bad)", opacity: modemProcessingId === p.id ? 0.6 : 1 }}
-                  >
-                    {modemProcessingId === p.id ? "..." : "Matikan"}
-                  </button>
+                  <>
+                    <button
+                      onClick={() => handleMatikanModem(p.id, p.nama)}
+                      disabled={modemProcessingId === p.id}
+                      style={{ marginLeft: 5, color: "var(--color-signal-bad)", opacity: modemProcessingId === p.id ? 0.6 : 1 }}
+                    >
+                      {modemProcessingId === p.id ? "..." : "Matikan"}
+                    </button>
+                    <button
+                      onClick={() => handleIsolirModem(p.id, p.nama)}
+                      disabled={modemProcessingId === p.id}
+                      style={{ marginLeft: 5, color: "#B8860B", opacity: modemProcessingId === p.id ? 0.6 : 1 }}
+                      title="Nama tetap keliatan aktif di Mikrotik, internet dibikin nggak bisa dipakai"
+                    >
+                      {modemProcessingId === p.id ? "..." : "Isolir"}
+                    </button>
+                  </>
                 )}
                 {p.tipe_langganan === "pppoe_bulanan" && p.status !== "aktif" && (
                   <button
-                    onClick={() => handleAktifkanModem(p.id, p.nama)}
+                    onClick={() => handleAktifkanModem(p.id, p.nama, p.status)}
                     disabled={modemProcessingId === p.id}
                     style={{ marginLeft: 5, color: "var(--color-signal-good)", opacity: modemProcessingId === p.id ? 0.6 : 1 }}
                   >
