@@ -20,6 +20,8 @@ interface GeneratedVoucher {
   harga: number;
 }
 
+const VOUCHER_PER_HALAMAN = 25;
+
 export default function VoucherMassalPage() {
   const [paketList, setPaketList] = useState<PaketVoucher[]>([]);
   const [routerList, setRouterList] = useState<RouterItem[]>([]);
@@ -72,6 +74,12 @@ export default function VoucherMassalPage() {
 
   function handlePrint() {
     window.print();
+  }
+
+  // Pecah hasil jadi per-halaman, masing-masing max 25 voucher (5 kolom x 5 baris) biar pas 1 lembar A4
+  const halamanList: GeneratedVoucher[][] = [];
+  for (let i = 0; i < hasil.length; i += VOUCHER_PER_HALAMAN) {
+    halamanList.push(hasil.slice(i, i + VOUCHER_PER_HALAMAN));
   }
 
   return (
@@ -145,79 +153,102 @@ export default function VoucherMassalPage() {
             className="px-5 py-2.5 rounded-lg text-sm font-medium text-white mb-6"
             style={{ background: "var(--color-signal-good)", border: "none" }}
           >
-            Cetak {hasil.length} Voucher
+            Cetak {hasil.length} Voucher ({halamanList.length} lembar A4)
           </button>
         )}
       </div>
 
-      {hasil.length > 0 && (
-        <div className="voucher-print-grid">
-          {hasil.map(function (v, i) {
-            return (
-              <div key={i} className="voucher-card">
-                <div className="voucher-card-header">
-                  <span className="voucher-card-logo">IONET+</span>
-                  <span className="voucher-card-harga">Rp{v.harga.toLocaleString("id-ID")}</span>
-                </div>
-                <p className="voucher-card-label">VOUCHER</p>
-                <p className="voucher-card-kode">{v.kode}</p>
-                <p className="voucher-card-info">Hubungkan ke WiFi ion.net</p>
-                <p className="voucher-card-info">Buka browser, ketik: ion.net</p>
-                <p className="voucher-card-cs">CS: 085696951288</p>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {halamanList.map(function (halaman, halamanIndex) {
+        return (
+          <div key={halamanIndex} className="voucher-page">
+            <div className="voucher-print-grid">
+              {halaman.map(function (v, i) {
+                return (
+                  <div key={i} className="voucher-card">
+                    <div className="voucher-card-header">
+                      <span className="voucher-card-logo">IONET+</span>
+                      <span className="voucher-card-harga">Rp{v.harga.toLocaleString("id-ID")}</span>
+                    </div>
+                    <p className="voucher-card-label">VOUCHER</p>
+                    <p className="voucher-card-kode">{v.kode}</p>
+                    <p className="voucher-card-info">Hubungkan ke WiFi ion.net</p>
+                    <p className="voucher-card-info">Buka browser, ketik: ion.net</p>
+                    <p className="voucher-card-cs">CS: 085696951288</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
 
       <style jsx global>{`
+        @page {
+          size: A4;
+          margin: 8mm;
+        }
+        .voucher-page {
+          width: 100%;
+        }
         .voucher-print-grid {
           display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 12px;
+          grid-template-columns: repeat(5, 1fr);
+          grid-auto-rows: 1fr;
+          gap: 6px;
         }
         .voucher-card {
           border: 1px dashed #999;
-          border-radius: 8px;
-          padding: 12px;
+          border-radius: 6px;
+          padding: 6px;
           background: white;
+          display: flex;
+          flex-direction: column;
         }
         .voucher-card-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 8px;
+          margin-bottom: 4px;
         }
         .voucher-card-logo {
           font-weight: 700;
-          font-size: 13px;
+          font-size: 9px;
           color: #1e88e5;
         }
         .voucher-card-harga {
           font-weight: 700;
-          font-size: 15px;
+          font-size: 10px;
         }
         .voucher-card-label {
-          font-size: 10px;
+          font-size: 7px;
           color: #666;
-          margin-bottom: 2px;
+          margin-bottom: 1px;
         }
         .voucher-card-kode {
           font-family: monospace;
-          font-size: 20px;
+          font-size: 13px;
           font-weight: 700;
-          letter-spacing: 1px;
-          margin-bottom: 8px;
+          letter-spacing: 0.5px;
+          margin-bottom: 4px;
         }
         .voucher-card-info {
-          font-size: 10px;
+          font-size: 6.5px;
           color: #666;
-          margin: 2px 0;
+          margin: 1px 0;
         }
         .voucher-card-cs {
-          font-size: 10px;
+          font-size: 6.5px;
           font-weight: 600;
-          margin-top: 6px;
+          margin-top: 3px;
+        }
+        @media screen {
+          .voucher-page {
+            max-width: 210mm;
+            margin: 0 auto 24px auto;
+            padding: 8mm;
+            background: #fff;
+            border: 1px solid var(--color-border);
+          }
         }
         @media print {
           .no-print,
@@ -227,8 +258,18 @@ export default function VoucherMassalPage() {
           main {
             padding: 0 !important;
           }
+          .voucher-page {
+            width: 100%;
+            height: 281mm;
+            page-break-after: always;
+          }
+          .voucher-page:last-child {
+            page-break-after: auto;
+          }
           .voucher-print-grid {
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(5, 1fr);
+            height: 100%;
           }
           .voucher-card {
             break-inside: avoid;
