@@ -184,7 +184,6 @@ export default function VoucherMassalPage() {
 
       <style jsx global>{`
         @page {
-          size: A4;
           margin: 8mm;
         }
         .voucher-page {
