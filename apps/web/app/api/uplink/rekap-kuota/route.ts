@@ -4,18 +4,20 @@ import { supabaseAdmin as supabase } from "@/lib/supabase/admin";
 function hitungRentang(periode: string) {
   const sekarang = new Date();
   const akhir = sekarang;
+  const WIB_MS = 7 * 60 * 60 * 1000;
+  const wib = new Date(sekarang.getTime() + WIB_MS); // batas hari/bulan/tahun dihitung dari tengah malam WIB, bukan UTC
   let awal: Date;
 
   if (periode === "harian") {
-    awal = new Date(sekarang.getFullYear(), sekarang.getMonth(), sekarang.getDate());
+    awal = new Date(Date.UTC(wib.getUTCFullYear(), wib.getUTCMonth(), wib.getUTCDate()) - WIB_MS);
   } else if (periode === "mingguan") {
     awal = new Date(sekarang);
     awal.setDate(awal.getDate() - 7);
   } else if (periode === "bulanan") {
-    awal = new Date(sekarang.getFullYear(), sekarang.getMonth(), 1);
+    awal = new Date(Date.UTC(wib.getUTCFullYear(), wib.getUTCMonth(), 1) - WIB_MS);
   } else {
     // tahunan
-    awal = new Date(sekarang.getFullYear(), 0, 1);
+    awal = new Date(Date.UTC(wib.getUTCFullYear(), 0, 1) - WIB_MS);
   }
 
   return { awal: awal.toISOString(), akhir: akhir.toISOString() };

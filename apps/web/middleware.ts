@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { canAccess } from "@/lib/roles";
 
 // Rute yang butuh role tertentu, di luar super_admin (super_admin selalu boleh
 // akses semua rute, gak perlu ditulis manual). Update tiap nambah halaman baru.
@@ -22,7 +23,7 @@ const ROLE_RESTRICTED_ROUTES: Record<string, string[]> = {
   "/jaringan/genieacs": ["admin"],
   "/jaringan/genieacs-coverage": ["admin"],
   "/jaringan/lokasi": [],
-  "/jaringan/rekap-kuota": [],
+  "/jaringan/rekap-kuota": ["teknisi_it"],
 
   "/pelanggan": ["admin"],
   "/tiket": ["admin", "teknisi"],
@@ -85,7 +86,7 @@ export async function middleware(request: NextRequest) {
     // super_admin selalu lolos, gak perlu dicek lagi
     if (matchedRestriction && staff && staff.role !== "super_admin") {
       const [, allowedRoles] = matchedRestriction;
-      if (!allowedRoles.includes(staff.role)) {
+      if (!canAccess(staff.role, allowedRoles)) {
         return NextResponse.redirect(new URL("/", request.url));
       }
     }

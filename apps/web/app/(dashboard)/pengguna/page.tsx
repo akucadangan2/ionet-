@@ -23,6 +23,7 @@ const roleStyle: Record<string, { bg: string; color: string; label: string }> = 
   super_admin: { bg: "#FADCDC", color: "#B5342E", label: "Super Admin" },
   admin: { bg: "#DDEBFF", color: "#1D5FBF", label: "Admin" },
   teknisi: { bg: "#FDEEDB", color: "#B5730B", label: "Teknisi" },
+  teknisi_it: { bg: "#DCF5E4", color: "#1D8348", label: "Teknisi IT" },
   staff_biasa: { bg: "#E5E7EB", color: "#4B5563", label: "Staff Biasa" },
 };
 
@@ -178,6 +179,7 @@ export default function PenggunaPage() {
               <option value="super_admin">Super Admin</option>
               <option value="admin">Admin</option>
               <option value="teknisi">Teknisi</option>
+              <option value="teknisi_it">Teknisi IT</option>
               <option value="staff_biasa">Staff Biasa</option>
             </select>
           </div>

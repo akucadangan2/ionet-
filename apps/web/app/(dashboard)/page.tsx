@@ -72,7 +72,7 @@ const menuGroups = [
       { href: "/jaringan/genieacs", label: "Kelola Modem", icon: Wifi, roles: ["admin"] },
       { href: "/jaringan/genieacs-coverage", label: "Cakupan GenieACS", icon: Radio, roles: ["admin"] },
       { href: "/jaringan/lokasi", label: "Lokasi", icon: MapPin, roles: [] },
-      { href: "/jaringan/rekap-kuota", label: "Rekap Kuota", icon: Database, roles: [] },
+      { href: "/jaringan/rekap-kuota", label: "Rekap Kuota", icon: Database, roles: ["teknisi_it"] },
     ],
   },
   {
